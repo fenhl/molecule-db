@@ -22,6 +22,7 @@ warnings = "deny"
 collect-mac = "0.1.0"
 enum-iterator = "2.1.0"
 itertools = "0.14"
+mimalloc = "0.1.43"
 omsim-rs = { git = "https://github.com/fenhl/omsim-rs.git", branch = "dev-fenhl" }
 rocket = { version = "0.5.1", features = ["json"] }
 rocket-util = { git = "https://github.com/fenhl/rocket-util", branch = "main" }
