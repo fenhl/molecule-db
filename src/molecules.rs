@@ -215,6 +215,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(&'static str, InOut, &'static s
             ("Film Crystal*", InOut::Reagent, "Elemental Copper"),
             ("Dark Matter Candidate*", InOut::Reagent, "Elemental Copper"),
             ("Thermic Capacitor*", InOut::Reagent, "Elemental Copper"),
+            ("Jewel Box*", InOut::Reagent, "Elemental Copper"),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Earth], bonds: collect![] }, vec![
             ("Face Powder", InOut::Reagent, "Elemental Earth"),
@@ -343,6 +344,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(&'static str, InOut, &'static s
             ("Thermic Capacitor*", InOut::Reagent, "Elemental Quicksilver"),
             ("The Amazing Everything-Machine*", InOut::Reagent, "Elemental Quicksilver"),
             ("Memory Lane*", InOut::Reagent, "Elemental Quicksilver"),
+            ("Jewel Box*", InOut::Reagent, "Elemental Quicksilver"),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Quintessence], bonds: collect![] }, vec![
             ("Proof of Completeness", InOut::Reagent, "Elemental Quintessence"),
@@ -354,6 +356,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(&'static str, InOut, &'static s
             ("Self-Pressurizing Gas*", InOut::Reagent, "Quintessence"),
             ("Unstable Sovrium*", InOut::Reagent, "Elemental Quintessence"),
             ("Bulk Transmutation*", InOut::Product, "Elemental Quintessence"),
+            ("Jewel Box*", InOut::Reagent, "Elemental Quintessence"),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Salt], bonds: collect![] }, vec![
             ("Lesson: Arms", InOut::Both, "Elemental Salt"),
@@ -960,8 +963,17 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(&'static str, InOut, &'static s
         (Molecule { atoms: collect![HexIndex { q: 0, r: 1 } => Atom::Iron, HexIndex { q: 0, r: 2 } => Atom::Tin, HexIndex { q: 1, r: 0 } => Atom::Tin, HexIndex { q: 1, r: 1 } => Atom::Iron, HexIndex { q: 1, r: 2 } => Atom::Tin, HexIndex { q: 2, r: 0 } => Atom::Tin, HexIndex { q: 2, r: 1 } => Atom::Repeat], bonds: collect![Bond { start: HexIndex { q: 0, r: 1 }, end: HexIndex { q: 0, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 1 }, end: HexIndex { q: 1, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 1 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 2 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 0 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 1 }, end: HexIndex { q: 1, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 1 }, end: HexIndex { q: 2, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 1 }, end: HexIndex { q: 2, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 2 }, end: HexIndex { q: 2, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 0 }, end: HexIndex { q: 2, r: 1 }, ty: BondType::Normal }] }, vec![
             ("Sword Alloy", InOut::Product, "Sword Alloy"),
         ]),
+        (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Fire, HexIndex { q: 0, r: 1 } => Atom::Salt, HexIndex { q: 1, r: 0 } => Atom::Gold, HexIndex { q: 1, r: 1 } => Atom::Fire], bonds: collect![Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 1, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 1 }, end: HexIndex { q: 1, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 0 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }] }, vec![
+            ("Jewel Box*", InOut::Product, "Synthetic Flame-Ruby"),
+        ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 2 } => Atom::Copper, HexIndex { q: 0, r: 3 } => Atom::Earth, HexIndex { q: 0, r: 4 } => Atom::Copper, HexIndex { q: 1, r: 1 } => Atom::Earth, HexIndex { q: 1, r: 4 } => Atom::Earth, HexIndex { q: 2, r: 0 } => Atom::Copper, HexIndex { q: 2, r: 4 } => Atom::Copper, HexIndex { q: 3, r: 0 } => Atom::Earth, HexIndex { q: 3, r: 3 } => Atom::Earth, HexIndex { q: 4, r: 0 } => Atom::Copper, HexIndex { q: 4, r: 1 } => Atom::Earth, HexIndex { q: 4, r: 2 } => Atom::Copper], bonds: collect![Bond { start: HexIndex { q: 0, r: 2 }, end: HexIndex { q: 0, r: 3 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 2 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 3 }, end: HexIndex { q: 0, r: 4 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 4 }, end: HexIndex { q: 1, r: 4 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 1 }, end: HexIndex { q: 2, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 4 }, end: HexIndex { q: 2, r: 4 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 0 }, end: HexIndex { q: 3, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 4 }, end: HexIndex { q: 3, r: 3 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 3, r: 0 }, end: HexIndex { q: 4, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 3, r: 3 }, end: HexIndex { q: 4, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 4, r: 0 }, end: HexIndex { q: 4, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 4, r: 1 }, end: HexIndex { q: 4, r: 2 }, ty: BondType::Normal }] }, vec![
             ("Synthetic Malachite", InOut::Product, "Synthetic Malachite"),
+        ]),
+        (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Silver, HexIndex { q: 0, r: 1 } => Atom::Air, HexIndex { q: 1, r: 0 } => Atom::Quintessence, HexIndex { q: 1, r: 1 } => Atom::Silver], bonds: collect![Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 0, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 1 }, end: HexIndex { q: 1, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 0 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }] }, vec![
+            ("Jewel Box*", InOut::Product, "Synthetic Moonstone"),
+        ]),
+        (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Quicksilver, HexIndex { q: 0, r: 1 } => Atom::Earth, HexIndex { q: 1, r: 0 } => Atom::Earth, HexIndex { q: 1, r: 1 } => Atom::Quintessence], bonds: collect![Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 0, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 1, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 1 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 0 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }] }, vec![
+            ("Jewel Box*", InOut::Product, "Synthetic Peridot"),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 3 } => Atom::Fire, HexIndex { q: 1, r: 2 } => Atom::Fire, HexIndex { q: 2, r: 1 } => Atom::Fire, HexIndex { q: 2, r: 2 } => Atom::Salt, HexIndex { q: 3, r: 0 } => Atom::Fire, HexIndex { q: 3, r: 1 } => Atom::Salt, HexIndex { q: 3, r: 2 } => Atom::Repeat], bonds: collect![Bond { start: HexIndex { q: 0, r: 3 }, end: HexIndex { q: 1, r: 2 }, ty: BondType::Triplex { red: true, black: true, yellow: true } }, Bond { start: HexIndex { q: 1, r: 2 }, end: HexIndex { q: 2, r: 1 }, ty: BondType::Triplex { red: true, black: true, yellow: true } }, Bond { start: HexIndex { q: 2, r: 1 }, end: HexIndex { q: 2, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 1 }, end: HexIndex { q: 3, r: 0 }, ty: BondType::Triplex { red: true, black: true, yellow: true } }, Bond { start: HexIndex { q: 2, r: 1 }, end: HexIndex { q: 3, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 2 }, end: HexIndex { q: 3, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 3, r: 1 }, end: HexIndex { q: 3, r: 2 }, ty: BondType::Normal }] }, vec![
             ("Thermal Fuse*", InOut::Product, "Thermal Fuse"),
