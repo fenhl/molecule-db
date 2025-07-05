@@ -287,6 +287,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(&'static str, InOut, &'static s
             ("Brazing Cathode*", InOut::Reagent, "Elemental Iron"),
             ("Dehydrated Water*", InOut::Reagent, "Elemental Iron"),
             ("Biosteel Filament*", InOut::Reagent, "Elemental Iron"),
+            ("Thermite Tape*", InOut::Reagent, "Elemental Iron"),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Lead], bonds: collect![] }, vec![
             ("Refined Gold", InOut::Reagent, "Elemental Lead"),
@@ -358,6 +359,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(&'static str, InOut, &'static s
             ("Unstable Sovrium*", InOut::Reagent, "Elemental Quintessence"),
             ("Bulk Transmutation*", InOut::Product, "Elemental Quintessence"),
             ("Jewel Box*", InOut::Reagent, "Elemental Quintessence"),
+            ("Thermite Tape*", InOut::Reagent, "Elemental Quintessence"),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Salt], bonds: collect![] }, vec![
             ("Lesson: Arms", InOut::Both, "Elemental Salt"),
@@ -788,6 +790,9 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(&'static str, InOut, &'static s
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Quicksilver, HexIndex { q: 0, r: 1 } => Atom::Gold], bonds: collect![Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 0, r: 1 }, ty: BondType::Normal }] }, vec![
             ("Reactive Gold", InOut::Product, "Reactive Gold"),
         ]),
+        (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Quicksilver, HexIndex { q: 0, r: 1 } => Atom::Iron], bonds: collect![Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 0, r: 1 }, ty: BondType::Normal }] }, vec![
+            ("Thermite Tape*", InOut::Reagent, "Reactive Iron"),
+        ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Quicksilver, HexIndex { q: 0, r: 1 } => Atom::Lead], bonds: collect![Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 0, r: 1 }, ty: BondType::Normal }] }, vec![
             ("Reactive Gold", InOut::Reagent, "Reactive Lead"),
         ]),
@@ -981,6 +986,9 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(&'static str, InOut, &'static s
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 3 } => Atom::Fire, HexIndex { q: 1, r: 2 } => Atom::Fire, HexIndex { q: 2, r: 1 } => Atom::Fire, HexIndex { q: 2, r: 2 } => Atom::Salt, HexIndex { q: 3, r: 0 } => Atom::Fire, HexIndex { q: 3, r: 1 } => Atom::Salt, HexIndex { q: 3, r: 2 } => Atom::Repeat], bonds: collect![Bond { start: HexIndex { q: 0, r: 3 }, end: HexIndex { q: 1, r: 2 }, ty: BondType::Triplex { red: true, black: true, yellow: true } }, Bond { start: HexIndex { q: 1, r: 2 }, end: HexIndex { q: 2, r: 1 }, ty: BondType::Triplex { red: true, black: true, yellow: true } }, Bond { start: HexIndex { q: 2, r: 1 }, end: HexIndex { q: 2, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 1 }, end: HexIndex { q: 3, r: 0 }, ty: BondType::Triplex { red: true, black: true, yellow: true } }, Bond { start: HexIndex { q: 2, r: 1 }, end: HexIndex { q: 3, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 2 }, end: HexIndex { q: 3, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 3, r: 1 }, end: HexIndex { q: 3, r: 2 }, ty: BondType::Normal }] }, vec![
             ("Thermal Fuse*", InOut::Product, "Thermal Fuse"),
+        ]),
+        (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Quicksilver, HexIndex { q: 0, r: 1 } => Atom::Fire, HexIndex { q: 0, r: 2 } => Atom::Fire, HexIndex { q: 0, r: 3 } => Atom::Copper, HexIndex { q: 1, r: 0 } => Atom::Iron, HexIndex { q: 1, r: 1 } => Atom::Fire, HexIndex { q: 1, r: 2 } => Atom::Fire, HexIndex { q: 2, r: 1 } => Atom::Repeat], bonds: collect![Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 1, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 1 }, end: HexIndex { q: 0, r: 2 }, ty: BondType::Triplex { red: true, black: true, yellow: true } }, Bond { start: HexIndex { q: 0, r: 1 }, end: HexIndex { q: 1, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 2 }, end: HexIndex { q: 0, r: 3 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 2 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Triplex { red: true, black: true, yellow: true } }, Bond { start: HexIndex { q: 1, r: 1 }, end: HexIndex { q: 1, r: 2 }, ty: BondType::Triplex { red: true, black: true, yellow: true } }, Bond { start: HexIndex { q: 1, r: 2 }, end: HexIndex { q: 2, r: 1 }, ty: BondType::Triplex { red: true, black: true, yellow: true } }] }, vec![
+            ("Thermite Tape*", InOut::Product, "Thermite Tape"),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Air, HexIndex { q: 0, r: 1 } => Atom::Air], bonds: collect![Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 0, r: 1 }, ty: BondType::Normal }] }, vec![
             ("Nightmare Fuel*", InOut::Reagent, "Thin Air"),
