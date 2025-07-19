@@ -60,6 +60,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(&'static str, InOut, &'static s
             ("Explorer's Salve", InOut::Reagent, "Bistabilized Salt"),
             ("Sweeper Rod*", InOut::Reagent, "Bistabilized Salt"),
             ("Hexstabilized Teuling's Mors*", InOut::Reagent, "Bistabilized Salt"),
+            ("Pareto Poppers*", InOut::Reagent, "Bistabilized Salt"),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Mors, HexIndex { q: 0, r: 1 } => Atom::Fire, HexIndex { q: 1, r: 0 } => Atom::Fire, HexIndex { q: 1, r: 1 } => Atom::Mors], bonds: collect![Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 0, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 1, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 1 }, end: HexIndex { q: 1, r: 0 }, ty: BondType::Triplex { red: true, black: true, yellow: true } }, Bond { start: HexIndex { q: 0, r: 1 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 0 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }] }, vec![
             ("Black Powder*", InOut::Product, "Black Powder"),
@@ -260,6 +261,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(&'static str, InOut, &'static s
             ("Material Salvage*", InOut::Product, "Elemental Fire"),
             ("Memory Lane*", InOut::Reagent, "Elemental Fire"),
             ("Burning Spirit of Saturn*", InOut::Reagent, "Elemental Fire"),
+            ("Pareto Poppers*", InOut::Reagent, "Elemental Fire"),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Gold], bonds: collect![] }, vec![
             ("Refined Gold", InOut::Product, "Elemental Gold (1)"),
@@ -854,6 +856,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(&'static str, InOut, &'static s
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Salt, HexIndex { q: 0, r: 1 } => Atom::Fire, HexIndex { q: 1, r: 0 } => Atom::Fire], bonds: collect![Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 0, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 1, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 1 }, end: HexIndex { q: 1, r: 0 }, ty: BondType::Triplex { red: true, black: true, yellow: true } }] }, vec![
             ("Black Powder*", InOut::Reagent, "Saltpeter"),
+            ("Pareto Poppers*", InOut::Product, "Pareto Popper"),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Vitae, HexIndex { q: 1, r: 0 } => Atom::Earth, HexIndex { q: 1, r: 1 } => Atom::Salt, HexIndex { q: 2, r: 0 } => Atom::Earth, HexIndex { q: 2, r: 1 } => Atom::Earth, HexIndex { q: 3, r: 0 } => Atom::Salt, HexIndex { q: 3, r: 1 } => Atom::Earth, HexIndex { q: 4, r: 0 } => Atom::Earth, HexIndex { q: 4, r: 1 } => Atom::Salt, HexIndex { q: 5, r: 0 } => Atom::Earth, HexIndex { q: 6, r: 0 } => Atom::Mors], bonds: collect![Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 1, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 0 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 1 }, end: HexIndex { q: 2, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 0 }, end: HexIndex { q: 2, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 1 }, end: HexIndex { q: 3, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 3, r: 0 }, end: HexIndex { q: 3, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 3, r: 1 }, end: HexIndex { q: 4, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 4, r: 0 }, end: HexIndex { q: 4, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 4, r: 1 }, end: HexIndex { q: 5, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 5, r: 0 }, end: HexIndex { q: 6, r: 0 }, ty: BondType::Normal }] }, vec![
             ("Sand of Suspension*", InOut::Product, "Sand of Suspension"),
