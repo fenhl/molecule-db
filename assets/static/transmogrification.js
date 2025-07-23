@@ -633,31 +633,73 @@ async function updateDownload() {
         document.getElementById('result').style.display = 'none';
         return;
     } else {
-        document.getElementById('default').style.display = 'none';
-        document.getElementById('error').textContent = '';
-        document.getElementById('result').style.display = '';
-    }
-    let response = await fetch(new Request('/api/v1/molecule-from-state', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(state),
-    }));
-    if (response.ok) {
-        let data = await response.json();
-        if (data.appearances.length === 0) {
-            document.getElementById('result').textContent = 'unknown molecule';
-            document.getElementById('result').addEventListener('click', async function (e) {
-                await navigator.clipboard.writeText(data.rustCode);
-            })
+        let response = await fetch(new Request('/api/v1/molecule-from-state', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(state),
+        }));
+        if (response.ok) {
+            let data = await response.json();
+            if (data.appearances.length === 0) {
+                const message = document.createElement('h1');
+                message.setAttribute('class', 'muted');
+                message.appendChild(document.createTextNode('unknown molecule'));
+                message.addEventListener('click', async function (e) {
+                    await navigator.clipboard.writeText(data.rustCode);
+                });
+                document.getElementById('result').replaceChildren(message);
+            } else if (data.appearances.every(val => val[2] === data.appearances[0][2])) {
+                const name = document.createElement('h1');
+                name.appendChild(document.createTextNode(data.appearances[0][2]));
+                const appearances = document.createElement('p');
+                data.appearances.forEach((val, idx) => {
+                    if (idx > 0) {
+                        const comma = document.createElement('span');
+                        comma.setAttribute('class', 'muted');
+                        comma.appendChild(document.createTextNode(', '));
+                        appearances.appendChild(comma);
+                    }
+                    appearances.appendChild(document.createTextNode(val[0]));
+                    const inOut = document.createElement('em');
+                    inOut.setAttribute('class', 'muted');
+                    switch (val[1]) {
+                        case 'Reagent': {
+                            inOut.setAttribute('title', 'appears as reagent');
+                            inOut.appendChild(document.createTextNode(' r'));
+                            break;
+                        }
+                        case 'Product': {
+                            inOut.setAttribute('title', 'appears as product');
+                            inOut.appendChild(document.createTextNode(' p'));
+                            break;
+                        }
+                        case 'Both': {
+                            inOut.setAttribute('title', 'appears as both reagent and product');
+                            inOut.appendChild(document.createTextNode(' rp'));
+                            break;
+                        }
+                        default: {
+                            throw 'unknown InOut kind';
+                        }
+                    }
+                    appearances.appendChild(inOut);
+                });
+                document.getElementById('result').replaceChildren(name, appearances);
+            } else {
+                document.getElementById('result').innerHTML = data.appearances
+                    .map(JSON.stringify)
+                    .join('<br />');
+            }
+            document.getElementById('default').style.display = 'none';
+            document.getElementById('error').textContent = '';
+            document.getElementById('result').style.display = '';
         } else {
-            document.getElementById('result').innerHTML = data.appearances
-                .map(JSON.stringify)
-                .join('<br />');
+            document.getElementById('default').style.display = 'none';
+            document.getElementById('error').textContent = 'molecule lookup failed';
+            document.getElementById('result').style.display = 'none';
         }
-    } else {
-        throw new Error('molecule lookup failed');
     }
 }
 function rotateCCW(point) {

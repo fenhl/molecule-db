@@ -259,7 +259,7 @@ fn index() -> RawHtml<String> {
                     div {
                         h2 : "ENTER MOLECULE TO LOOK UP";
                         canvas(id = "current");
-                        p(id = "result", style = "display: none;");
+                        div(id = "result", style = "display: none;");
                         p(id = "error");
                     }
                     p(id = "default") {
@@ -267,7 +267,7 @@ fn index() -> RawHtml<String> {
                     }
                 }
                 canvas(id = "next", style = "display: none;");
-                footer {
+                footer(class = "muted") {
                     p {
                         : "hosted by ";
                         a(href = "https://fenhl.net/") : "Fenhl";
