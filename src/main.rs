@@ -262,10 +262,8 @@ fn index() -> RawHtml<String> {
                         p(id = "result", style = "display: none;");
                         p(id = "error");
                     }
-                    ul(id = "default") {
-                        li {
-                            a(href = uri!(molecules_list).to_string()) : "List of all molecules";
-                        }
+                    p(id = "default") {
+                        a(href = uri!(molecules_list).to_string()) : "List of all molecules";
                     }
                 }
                 canvas(id = "next", style = "display: none;");
