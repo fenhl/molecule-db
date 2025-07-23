@@ -17,12 +17,9 @@ use {
     itertools::Itertools as _,
     omsim_rs::data::*,
     rocket::{
+        fs::FileServer,
         http::Status,
-        response::content::{
-            RawCss,
-            RawHtml,
-            RawJavaScript,
-        },
+        response::content::RawHtml,
         serde::json::Json,
         uri,
     },
@@ -39,6 +36,8 @@ use {
         util::IteratorExt as _,
     },
 };
+
+include!(concat!(env!("OUT_DIR"), "/static_files.rs"));
 
 mod molecules;
 mod unparse;
@@ -250,9 +249,9 @@ fn index() -> RawHtml<String> {
                 meta(charset = "utf-8");
                 title : "Opus Magnum Molecule Database";
                 meta(name = "viewport", content = "width=device-width, initial-scale=1, shrink-to-fit=no");
-                link(rel = "stylesheet", href = "/static/common.css");
-                script(src = "/static/common.js");
-                script(defer, src = "/static/transmogrification.js");
+                link(rel = "stylesheet", href = static_url!("common.css"));
+                script(src = static_url!("common.js"));
+                script(defer, src = static_url!("transmogrification.js"));
             }
             body {
                 main(style = "flex-direction: column;") {
@@ -343,8 +342,8 @@ fn molecules_list() -> RawHtml<String> {
                 meta(charset = "utf-8");
                 title : "Opus Magnum Molecule Database";
                 meta(name = "viewport", content = "width=device-width, initial-scale=1, shrink-to-fit=no");
-                link(rel = "stylesheet", href = "/static/common.css");
-                script(src = "/static/common.js");
+                link(rel = "stylesheet", href = static_url!("common.css"));
+                script(src = static_url!("common.js"));
             }
             body {
                 main {
@@ -360,32 +359,16 @@ fn molecules_list() -> RawHtml<String> {
     }
 }
 
-#[rocket::get("/static/common.css")]
-fn common_css() -> RawCss<&'static str> {
-    RawCss(include_str!("../assets/static/common.css"))
-}
-
-#[rocket::get("/static/common.js")]
-fn common_js() -> RawJavaScript<&'static str> {
-    RawJavaScript(include_str!("../assets/static/common.js"))
-}
-
-#[rocket::get("/static/transmogrification.js")]
-fn transmogrification_js() -> RawJavaScript<&'static str> {
-    RawJavaScript(include_str!("../assets/static/transmogrification.js"))
-}
-
 #[rocket::launch]
 fn rocket() -> _ {
     rocket::custom(rocket::Config {
         port: 24821,
         ..rocket::Config::default()
-    }).mount("/", rocket::routes![
+    })
+    .mount("/", rocket::routes![
         index,
         molecule_from_state,
         molecules_list,
-        common_css,
-        common_js,
-        transmogrification_js,
     ])
+    .mount("/static", FileServer::new("assets/static", rocket::fs::Options::None))
 }

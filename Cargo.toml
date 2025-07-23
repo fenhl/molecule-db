@@ -18,6 +18,10 @@ unused_lifetimes = "deny"
 unused_qualifications = "deny"
 warnings = "deny"
 
+[build-dependencies]
+git2 = "0.20" # gix is much slower here
+thiserror = "2"
+
 [dependencies]
 collect-mac = "0.1.0"
 enum-iterator = "2.1.0"
