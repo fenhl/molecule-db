@@ -688,9 +688,57 @@ async function updateDownload() {
                 });
                 document.getElementById('result').replaceChildren(name, appearances);
             } else {
-                document.getElementById('result').innerHTML = data.appearances
-                    .map(JSON.stringify)
-                    .join('<br />');
+                const message = document.createElement('h1');
+                const inner = document.createElement('em');
+                inner.appendChild(document.createTextNode('multiple names'));
+                message.appendChild(inner);
+                const names = data.appearances.map(val => val[2]).filter((val, idx, array) => array.indexOf(val) === idx);
+                const appearances = names.map((name) => {
+                    const nameElt = document.createElement('p');
+                    const prefix = document.createElement('span');
+                    prefix.setAttribute('class', 'muted');
+                    prefix.appendChild(document.createTextNode('as '));
+                    nameElt.appendChild(prefix);
+                    nameElt.appendChild(document.createTextNode(name));
+                    const colon = document.createElement('span');
+                    colon.setAttribute('class', 'muted');
+                    colon.appendChild(document.createTextNode(': '));
+                    nameElt.appendChild(colon);
+                    data.appearances.filter(val => val[2] === name).forEach((val, idx) => {
+                        if (idx > 0) {
+                            const comma = document.createElement('span');
+                            comma.setAttribute('class', 'muted');
+                            comma.appendChild(document.createTextNode(', '));
+                            nameElt.appendChild(comma);
+                        }
+                        nameElt.appendChild(document.createTextNode(val[0]));
+                        const inOut = document.createElement('em');
+                        inOut.setAttribute('class', 'muted');
+                        switch (val[1]) {
+                            case 'Reagent': {
+                                inOut.setAttribute('title', 'appears as reagent');
+                                inOut.appendChild(document.createTextNode(' r'));
+                                break;
+                            }
+                            case 'Product': {
+                                inOut.setAttribute('title', 'appears as product');
+                                inOut.appendChild(document.createTextNode(' p'));
+                                break;
+                            }
+                            case 'Both': {
+                                inOut.setAttribute('title', 'appears as both reagent and product');
+                                inOut.appendChild(document.createTextNode(' rp'));
+                                break;
+                            }
+                            default: {
+                                throw 'unknown InOut kind';
+                            }
+                        }
+                        nameElt.appendChild(inOut);
+                    });
+                    return nameElt;
+                });
+                document.getElementById('result').replaceChildren(message, ...appearances);
             }
             document.getElementById('default').style.display = 'none';
             document.getElementById('error').textContent = '';
