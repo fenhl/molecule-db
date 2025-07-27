@@ -329,12 +329,17 @@ fn index(m: Option<FormMolecule>) -> Result<RawHtml<String>, IndexError> {
                     }
                     div {
                         h2 : "ENTER MOLECULE TO LOOK UP";
-                        canvas(id = "current");
-                        div(id = "result", style = "display: none;");
-                        p(id = "error");
+                        div(id = "canvas-wrapper") {
+                            canvas(id = "current");
+                            div(id = "clear", class = "canvas-button", style = "display: none;") {
+                                a(href = uri!(index(_))) : "Clear";
+                            }
+                        }
                     }
+                    div(id = "result", style = "display: none;");
+                    p(id = "error");
                     p(id = "default") {
-                        a(href = uri!(molecules_list).to_string()) : "List of all molecules";
+                        a(href = uri!(molecules_list)) : "List of all molecules";
                     }
                 }
                 canvas(id = "next", style = "display: none;");

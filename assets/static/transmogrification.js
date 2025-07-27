@@ -623,11 +623,13 @@ function stateForEnumerationIndex(index) {
 async function updateDownload() {
     const validationResult = validateState(state);
     if (validationResult.empty) {
+        document.getElementById('clear').style.display = 'none';
         document.getElementById('default').style.display = '';
         document.getElementById('error').textContent = '';
         document.getElementById('result').style.display = 'none';
         return;
     } else if (validationResult.error) {
+        document.getElementById('clear').style.display = '';
         document.getElementById('default').style.display = 'none';
         document.getElementById('error').textContent = validationResult.error;
         document.getElementById('result').style.display = 'none';
@@ -740,10 +742,12 @@ async function updateDownload() {
                 });
                 document.getElementById('result').replaceChildren(message, ...appearances);
             }
+            document.getElementById('clear').style.display = '';
             document.getElementById('default').style.display = 'none';
             document.getElementById('error').textContent = '';
             document.getElementById('result').style.display = '';
         } else {
+            document.getElementById('clear').style.display = '';
             document.getElementById('default').style.display = 'none';
             document.getElementById('error').textContent = 'molecule lookup failed';
             document.getElementById('result').style.display = 'none';

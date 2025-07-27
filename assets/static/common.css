@@ -22,6 +22,11 @@ a {
     padding: 20px;
     border-radius: 8px;
 }
+#canvas-wrapper {
+    position: relative;
+    width: 1001px;
+    margin: 0 auto;
+}
 canvas {
     display: block;
     border-radius: 8px;
@@ -30,6 +35,22 @@ canvas {
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
+}
+.canvas-button {
+    position: absolute;
+}
+.canvas-button > a {
+    background-color: #2a2a3b;
+    text-decoration: none;
+    border-radius: 8px;
+    padding: 8px;
+}
+.canvas-button > a:hover {
+    background-color: bl #2a2a3b;
+}
+.canvas-button#clear {
+    top: 25px;
+    right: 25px;
 }
 p#error {
     font-weight: bold;
