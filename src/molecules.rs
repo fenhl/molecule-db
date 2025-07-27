@@ -46,6 +46,9 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(&'static str, InOut, &'static s
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Iron, HexIndex { q: 1, r: 0 } => Atom::Iron, HexIndex { q: 2, r: 0 } => Atom::Repeat], bonds: collect![Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 1, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 0 }, end: HexIndex { q: 2, r: 0 }, ty: BondType::Normal }] }, vec![
             ("Armor Filament", InOut::Product, "Armor Filament"),
         ]),
+        (Molecule { atoms: collect![HexIndex { q: 0, r: 1 } => Atom::Salt, HexIndex { q: 1, r: 0 } => Atom::Mors, HexIndex { q: 1, r: 1 } => Atom::Repeat], bonds: collect![Bond { start: HexIndex { q: 0, r: 1 }, end: HexIndex { q: 1, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 0 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }] }, vec![
+            ("Asbestos*", InOut::Product, "Asbestos"),
+        ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Iron, HexIndex { q: 0, r: 1 } => Atom::Iron, HexIndex { q: 0, r: 2 } => Atom::Mors, HexIndex { q: 1, r: 0 } => Atom::Iron, HexIndex { q: 1, r: 1 } => Atom::Iron, HexIndex { q: 1, r: 2 } => Atom::Iron, HexIndex { q: 2, r: 0 } => Atom::Iron, HexIndex { q: 2, r: 1 } => Atom::Iron, HexIndex { q: 2, r: 2 } => Atom::Iron, HexIndex { q: 3, r: 0 } => Atom::Mors, HexIndex { q: 3, r: 1 } => Atom::Iron, HexIndex { q: 3, r: 2 } => Atom::Iron, HexIndex { q: 4, r: 1 } => Atom::Repeat], bonds: collect![Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 0, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 1, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 2 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 0 }, end: HexIndex { q: 2, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 1 }, end: HexIndex { q: 2, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 1 }, end: HexIndex { q: 2, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 2 }, end: HexIndex { q: 2, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 2 }, end: HexIndex { q: 2, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 2 }, end: HexIndex { q: 3, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 3, r: 0 }, end: HexIndex { q: 3, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 3, r: 1 }, end: HexIndex { q: 3, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 3, r: 1 }, end: HexIndex { q: 4, r: 1 }, ty: BondType::Normal }] }, vec![
             ("Assassin's Filament", InOut::Product, "Assassin's Filament"),
         ]),
@@ -95,6 +98,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(&'static str, InOut, &'static s
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Salt, HexIndex { q: 0, r: 1 } => Atom::Quicksilver], bonds: collect![Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 0, r: 1 }, ty: BondType::Normal }] }, vec![
             ("Lustrous Syrup*", InOut::Reagent, "Cinnabar Fragment"),
             ("Children's toys*", InOut::Reagent, "Stabilized quicksilver for kids"),
+            ("Asbestos*", InOut::Reagent, "Cinnabar Fragment"),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 2 } => Atom::Salt, HexIndex { q: 1, r: 1 } => Atom::Earth, HexIndex { q: 1, r: 2 } => Atom::Salt, HexIndex { q: 2, r: 0 } => Atom::Salt, HexIndex { q: 2, r: 1 } => Atom::Earth, HexIndex { q: 3, r: 0 } => Atom::Salt, HexIndex { q: 3, r: 1 } => Atom::Repeat], bonds: collect![Bond { start: HexIndex { q: 0, r: 2 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 1 }, end: HexIndex { q: 2, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 1 }, end: HexIndex { q: 2, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 2 }, end: HexIndex { q: 2, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 1 }, end: HexIndex { q: 3, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 1 }, end: HexIndex { q: 3, r: 1 }, ty: BondType::Normal }] }, vec![
             ("Climbing Rope Fiber", InOut::Product, "Climbing Rope Fiber"),
@@ -234,6 +238,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(&'static str, InOut, &'static s
             ("Touch Grass*", InOut::Reagent, "Elemental Earth"),
             ("Material Salvage*", InOut::Product, "Elemental Earth"),
             ("Sand of Suspension*", InOut::Reagent, "Elemental Earth"),
+            ("Asbestos*", InOut::Reagent, "Elemental Earth"),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Fire], bonds: collect![] }, vec![
             ("Lesson: Introduction", InOut::Reagent, "Elemental Fire"),
@@ -319,6 +324,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(&'static str, InOut, &'static s
             ("Extraction from Sapa*", InOut::Reagent, "Elemental Lead"),
             ("Burning Spirit of Saturn*", InOut::Product, "Elemental Lead"),
             ("Smog Neutralization*", InOut::Reagent, "Elemental Lead"),
+            ("Asbestos*", InOut::Reagent, "Elemental Lead"),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Mors], bonds: collect![] }, vec![
             ("Assassin's Filament", InOut::Reagent, "Elemental Mors"),
