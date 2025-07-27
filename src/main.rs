@@ -12,13 +12,33 @@ use {
             HashMap,
             HashSet,
         },
+        fmt,
+        mem,
+    },
+    async_proto::Protocol,
+    base64::engine::{
+        Engine as _,
+        general_purpose::URL_SAFE as BASE64,
     },
     enum_iterator::all,
     itertools::Itertools as _,
     omsim_rs::data::*,
     rocket::{
+        data::ToByteUnit as _,
+        form::{
+            self,
+            FromFormField,
+        },
         fs::FileServer,
-        http::Status,
+        http::{
+            Status,
+            impl_from_uri_param_identity,
+            uri::fmt::{
+                Formatter,
+                Query,
+                UriDisplay,
+            },
+        },
         response::content::RawHtml,
         serde::json::Json,
         uri,
@@ -32,14 +52,19 @@ use {
         Serialize,
     },
     crate::{
+        proto::FormMolecule,
         unparse::Unparse,
-        util::IteratorExt as _,
+        util::{
+            IntExt as _,
+            IteratorExt as _,
+        },
     },
 };
 
 include!(concat!(env!("OUT_DIR"), "/static_files.rs"));
 
 mod molecules;
+mod proto;
 mod unparse;
 mod util;
 
@@ -240,9 +265,54 @@ fn format_atom(atom: Atom) -> &'static str {
     }
 }
 
-#[rocket::get("/")]
-fn index() -> RawHtml<String> {
-    html! {
+#[rocket::async_trait]
+impl<'v> FromFormField<'v> for FormMolecule {
+    fn from_value(field: form::ValueField<'v>) -> form::Result<'v, Self> {
+        Ok(Self::read_sync(&mut &*BASE64.decode(field.value).map_err(|e| form::Error::validation(e.to_string()))?).map_err(|e| form::Error::validation(e.to_string()))?)
+    }
+
+    async fn from_data(field: form::DataField<'v, '_>) -> form::Result<'v, Self> {
+        let limit = field.request.limits()
+            .get("molecule")
+            .unwrap_or(256.kibibytes());
+        let bytes = field.data.open(limit).into_bytes().await?;
+        if !bytes.is_complete() {
+            Err((None, Some(limit)))?;
+        }
+        Ok(Self::read_sync(&mut &*bytes.into_inner()).map_err(|e| form::Error::validation(e.to_string()))?)
+    }
+
+    fn default() -> Option<Self> {
+        Some(Self(Molecule { atoms: HashMap::default(), bonds: HashSet::default() }))
+    }
+}
+
+impl UriDisplay<Query> for FormMolecule {
+    fn fmt(&self, f: &mut Formatter<'_, Query>) -> fmt::Result {
+        let mut buf = Vec::default();
+        self.write_sync(&mut buf).map_err(|_| fmt::Error)?;
+        f.write_raw(BASE64.encode(buf))
+    }
+}
+
+impl_from_uri_param_identity!([Query] FormMolecule);
+
+#[derive(Debug, thiserror::Error, rocket_util::Error)]
+enum IndexError {
+    #[error(transparent)] Json(#[from] serde_json::Error),
+}
+
+#[rocket::get("/?<m>")]
+fn index(m: Option<FormMolecule>) -> Result<RawHtml<String>, IndexError> {
+    let (js_state, molecule_too_large) = if let Some(FormMolecule(molecule)) = m {
+        match JsState::try_from(molecule) {
+            Ok(js_state) => (Some(js_state), false),
+            Err(MoleculeTooLarge) => (None, true),
+        }
+    } else {
+        (None, false)
+    };
+    Ok(html! {
         : Doctype;
         html {
             head {
@@ -251,10 +321,12 @@ fn index() -> RawHtml<String> {
                 meta(name = "viewport", content = "width=device-width, initial-scale=1, shrink-to-fit=no");
                 link(rel = "stylesheet", href = static_url!("common.css"));
                 script(src = static_url!("common.js"));
-                script(defer, src = static_url!("transmogrification.js"));
             }
             body {
                 main(style = "flex-direction: column;") {
+                    @if molecule_too_large {
+                        div(class = "emphasized-section") : "molecule does not fit onto canvas";
+                    }
                     div {
                         h2 : "ENTER MOLECULE TO LOOK UP";
                         canvas(id = "current");
@@ -276,18 +348,105 @@ fn index() -> RawHtml<String> {
                         a(href = "https://github.com/fenhl/molecule-db") : "source code";
                     }
                 }
+                script(src = static_url!("transmogrification.js"));
+                @if let Some(js_state) = js_state {
+                    script : RawHtml(format!("
+                        async function updateFromQuery() {{
+                            state = {0};
+                            nextState = state;
+                            redraw();
+                            await updateDownload();
+                        }}
+
+                        updateFromQuery();
+                    ", serde_json::to_value(js_state)?));
+                }
             }
         }
-    }
+    })
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct JsState {
     #[allow(unused)] selected_atom: Option<String>,
     #[allow(unused)] selected_bond: Option<String>,
     #[serde(flatten)]
     rest: HashMap<String, String>,
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error("molecule does not fit onto canvas")]
+struct MoleculeTooLarge;
+
+impl TryFrom<Molecule> for JsState {
+    type Error = MoleculeTooLarge;
+
+    fn try_from(molecule: Molecule) -> Result<Self, Self::Error> {
+        let mut molecule = molecule.normalized();
+        if !molecule.atoms.is_empty() {
+            // move molecule to try to fit onto canvas
+            for rotation in [HexRotation::R0, HexRotation::R60, HexRotation::R120] {
+                molecule = molecule.rotated(HexIndex::default(), rotation);
+                let (min, max) = molecule.atoms.keys().minmax_by_key(|HexIndex { q, r }| q + r).into_option().expect("molecule has no atoms, checked above");
+                let min_offset = min.q + min.r;
+                let max_offset = max.q + max.r;
+                if max_offset - min_offset > 8 {
+                    return Err(MoleculeTooLarge)
+                }
+                let center_offset = (max_offset + min_offset) / 2;
+                molecule = molecule.translated(HexIndex { q: -center_offset.div_euclid(2), r: -center_offset.div_ceil(2) });
+                molecule = molecule.rotated(HexIndex::default(), (-i16::from(rotation.turns())).into());
+            }
+        }
+        let Molecule { atoms, bonds } = molecule;
+        Ok(Self {
+            selected_atom: Some(format!("salt")),
+            selected_bond: Some(format!("n")),
+            rest: atoms.into_iter()
+                .map(|(pos, atom)| (format!("{},{}", pos.q, pos.r), format_atom(atom).to_owned()))
+                .chain(bonds.into_iter()
+                    .map(|Bond { mut start, mut end, ty }| {
+                        if end.q == start.q + 1 && end.r == start.r - 1 {
+                            // JS expects this bond direction to be given in the opposite direction compared to MoleculeExt::normalized
+                            mem::swap(&mut start, &mut end);
+                        }
+                        (format!("{},{}:{},{}", start.q, start.r, end.q, end.r), match ty {
+                            BondType::Normal => format!("n"),
+                            BondType::Triplex { red, black, yellow } => format!("{}{}{}", if red { "r" } else { "" }, if black { "k" } else { "" }, if yellow { "y" } else { "" }),
+                        })
+                    })
+                )
+                .collect(),
+        })
+    }
+}
+
+impl TryFrom<JsState> for Molecule {
+    type Error = ();
+
+    fn try_from(JsState { rest, .. }: JsState) -> Result<Self, ()> {
+        let mut molecule = Self { atoms: HashMap::default(), bonds: HashSet::default() };
+        for (key, value) in rest {
+            if let Some((start, end)) = key.split_once(':') {
+                let (q1, r1) = start.split_once(',').ok_or(())?;
+                let (q2, r2) = end.split_once(',').ok_or(())?;
+                molecule.bonds.insert(Bond {
+                    start: HexIndex { q: q1.parse().map_err(|_| ())?, r: r1.parse().map_err(|_| ())? },
+                    end: HexIndex { q: q2.parse().map_err(|_| ())?, r: r2.parse().map_err(|_| ())? },
+                    ty: if value == "n" {
+                        BondType::Normal
+                    } else {
+                        BondType::Triplex { red: value.contains('r'), black: value.contains('k'), yellow: value.contains('y') }
+                    },
+                });
+            } else {
+                let (q, r) = key.split_once(',').ok_or(())?;
+                molecule.atoms.insert(HexIndex { q: q.parse().map_err(|_| ())?, r: r.parse().map_err(|_| ())? }, parse_atom(&value).ok_or(())?);
+            }
+        }
+        Ok(molecule.normalized())
+    }
 }
 
 #[derive(Serialize)]
@@ -299,27 +458,7 @@ struct MoleculeResponse {
 
 #[rocket::post("/api/v1/molecule-from-state", format = "json", data = "<state>")]
 fn molecule_from_state(state: Json<JsState>) -> Result<Json<MoleculeResponse>, Status> {
-    let Json(JsState { rest, .. }) = state;
-    let mut molecule = Molecule { atoms: HashMap::default(), bonds: HashSet::default() };
-    for (key, value) in rest {
-        if let Some((start, end)) = key.split_once(':') {
-            let (q1, r1) = start.split_once(',').ok_or(Status::BadRequest)?;
-            let (q2, r2) = end.split_once(',').ok_or(Status::BadRequest)?;
-            molecule.bonds.insert(Bond {
-                start: HexIndex { q: q1.parse().map_err(|_| Status::BadRequest)?, r: r1.parse().map_err(|_| Status::BadRequest)? },
-                end: HexIndex { q: q2.parse().map_err(|_| Status::BadRequest)?, r: r2.parse().map_err(|_| Status::BadRequest)? },
-                ty: if value == "n" {
-                    BondType::Normal
-                } else {
-                    BondType::Triplex { red: value.contains('r'), black: value.contains('k'), yellow: value.contains('y') }
-                },
-            });
-        } else {
-            let (q, r) = key.split_once(',').ok_or(Status::BadRequest)?;
-            molecule.atoms.insert(HexIndex { q: q.parse().map_err(|_| Status::BadRequest)?, r: r.parse().map_err(|_| Status::BadRequest)? }, parse_atom(&value).ok_or(Status::BadRequest)?);
-        }
-    }
-    let molecule = molecule.normalized();
+    let molecule = Molecule::try_from(state.0).map_err(|()| Status::BadRequest)?;
     let mut response = MoleculeResponse {
         appearances: Vec::default(),
         rust_code: format!("{:?}", Unparse(&molecule)),
@@ -350,7 +489,7 @@ fn molecules_list() -> RawHtml<String> {
                     @for (idx, (molecule, appearances)) in molecules::molecules().into_iter().sorted_unstable_by_key(|(_, appearances)| appearances.iter().map(|(_, _, name)| name).min().map(|name| name.to_owned())).enumerate() {
                         div {
                             h2 : appearances.iter().map(|(_, _, name)| name).sorted_unstable().dedup().join("/");
-                            : molecule.draw(&format!("product{idx}"));
+                            a(href = uri!(index(Some(FormMolecule(molecule.clone()))))) : molecule.draw(&format!("product{idx}"));
                         }
                     }
                 }

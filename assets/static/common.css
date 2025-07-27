@@ -16,6 +16,12 @@ a {
     color: inherit;
     text-decoration: underline;
 }
+.emphasized-section {
+    background-color: #223;
+    margin: 20px -20px;
+    padding: 20px;
+    border-radius: 8px;
+}
 canvas {
     display: block;
     border-radius: 8px;

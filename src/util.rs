@@ -1,5 +1,26 @@
 use std::cmp::Ordering;
 
+pub(crate) trait IntExt {
+    fn div_ceil(self, rhs: Self) -> Self;
+}
+
+impl IntExt for i32 {
+    //FROM https://doc.rust-lang.org/src/core/num/int_macros.rs.html
+    fn div_ceil(self, rhs: Self) -> Self {
+        let d = self / rhs;
+        let r = self % rhs;
+
+        // When remainder is non-zero we have a.div_ceil(b) == 1 + a.div_floor(b),
+        // so we can re-use the algorithm from div_floor, just adding 1.
+        let correction = 1 + ((self ^ rhs) >> (Self::BITS - 1));
+        if r != 0 {
+            d + correction
+        } else {
+            d
+        }
+    }
+}
+
 pub(crate) trait IteratorExt: Iterator {
     fn _cmp_by<I, F>(self, other: I, cmp: F) -> Ordering
     where
