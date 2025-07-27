@@ -52,6 +52,10 @@ canvas {
     top: 25px;
     right: 25px;
 }
+.canvas-button#permalink {
+    bottom: 25px;
+    right: 25px;
+}
 p#error {
     font-weight: bold;
 }

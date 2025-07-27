@@ -334,6 +334,9 @@ fn index(m: Option<FormMolecule>) -> Result<RawHtml<String>, IndexError> {
                             div(id = "clear", class = "canvas-button", style = "display: none;") {
                                 a(href = uri!(index(_))) : "Clear";
                             }
+                            div(id = "permalink", class = "canvas-button", style = "display: none;") {
+                                a : "Copy Permalink";
+                            }
                         }
                     }
                     div(id = "result", style = "display: none;");
@@ -458,14 +461,18 @@ impl TryFrom<JsState> for Molecule {
 #[serde(rename_all = "camelCase")]
 struct MoleculeResponse {
     appearances: Vec<(String, InOut, String)>,
+    permalink: String,
     rust_code: String,
 }
 
 #[rocket::post("/api/v1/molecule-from-state", format = "json", data = "<state>")]
 fn molecule_from_state(state: Json<JsState>) -> Result<Json<MoleculeResponse>, Status> {
     let molecule = Molecule::try_from(state.0).map_err(|()| Status::BadRequest)?;
+    let mut permalink = Vec::default();
+    FormMolecule(molecule.clone()).write_sync(&mut permalink).map_err(|_| Status::BadRequest)?;
     let mut response = MoleculeResponse {
         appearances: Vec::default(),
+        permalink: BASE64.encode(permalink),
         rust_code: format!("{:?}", Unparse(&molecule)),
     };
     for (iter_molecule, appearances) in molecules::molecules() {

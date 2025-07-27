@@ -621,15 +621,18 @@ function stateForEnumerationIndex(index) {
     }
 }
 async function updateDownload() {
+    document.getElementById('permalink').onclick = () => {};
     const validationResult = validateState(state);
     if (validationResult.empty) {
         document.getElementById('clear').style.display = 'none';
+        document.getElementById('permalink').style.display = 'none';
         document.getElementById('default').style.display = '';
         document.getElementById('error').textContent = '';
         document.getElementById('result').style.display = 'none';
         return;
     } else if (validationResult.error) {
         document.getElementById('clear').style.display = '';
+        document.getElementById('permalink').style.display = 'none';
         document.getElementById('default').style.display = 'none';
         document.getElementById('error').textContent = validationResult.error;
         document.getElementById('result').style.display = 'none';
@@ -644,6 +647,9 @@ async function updateDownload() {
         }));
         if (response.ok) {
             let data = await response.json();
+            document.getElementById('permalink').onclick = async function (e) {
+                await navigator.clipboard.writeText(`https://mol.fenhl.net/?m=${data.permalink}`);
+            };
             if (data.appearances.length === 0) {
                 const message = document.createElement('h1');
                 message.setAttribute('class', 'muted');
@@ -743,11 +749,13 @@ async function updateDownload() {
                 document.getElementById('result').replaceChildren(message, ...appearances);
             }
             document.getElementById('clear').style.display = '';
+            document.getElementById('permalink').style.display = '';
             document.getElementById('default').style.display = 'none';
             document.getElementById('error').textContent = '';
             document.getElementById('result').style.display = '';
         } else {
             document.getElementById('clear').style.display = '';
+            document.getElementById('permalink').style.display = 'none';
             document.getElementById('default').style.display = 'none';
             document.getElementById('error').textContent = 'molecule lookup failed';
             document.getElementById('result').style.display = 'none';
