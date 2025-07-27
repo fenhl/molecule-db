@@ -88,30 +88,6 @@ impl From<Atom> for ProtocolAtom {
 }
 
 #[derive(PartialEq, Eq, Hash, Protocol)]
-enum ProtocolBondType {
-    Normal,
-    Triplex { red: bool, black: bool, yellow: bool },
-}
-
-impl From<ProtocolBondType> for BondType {
-    fn from(value: ProtocolBondType) -> Self {
-        match value {
-            ProtocolBondType::Normal => Self::Normal,
-            ProtocolBondType::Triplex { red, black, yellow } => Self::Triplex { red, black, yellow },
-        }
-    }
-}
-
-impl From<BondType> for ProtocolBondType {
-    fn from(value: BondType) -> Self {
-        match value {
-            BondType::Normal => Self::Normal,
-            BondType::Triplex { red, black, yellow } => Self::Triplex { red, black, yellow },
-        }
-    }
-}
-
-#[derive(PartialEq, Eq, Hash, Protocol)]
 struct ProtocolBond {
     start: ProtocolHexIndex,
     packed: u8,
