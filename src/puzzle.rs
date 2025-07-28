@@ -44,6 +44,7 @@ puzzles! {
     "Alchemical Jewel", AlchemicalJewel, None,
     "Alchemical Slag", AlchemicalSlag, None,
     "Alcohol Separation", AlcoholSeparation, None,
+    "Amalgamated Gold Ring", AmalgamatedGoldRing, Some("https://reddit.com/r/opus_magnum/comments/f2e6ne/week_2_results_post_tournament_update/"),
     "Animismus Buffer", AnimismusBuffer, None,
     "Armor Filament", ArmorFilament, None,
     "Asbestos", Asbestos, Some("https://events.critelli.technology/OM2025Weeklies6_Asbestos"),
