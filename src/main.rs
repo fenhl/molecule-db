@@ -355,6 +355,11 @@ fn index(m: Option<FormMolecule>) -> Result<RawHtml<String>, IndexError> {
                         : " • ";
                         a(href = "https://github.com/fenhl/molecule-db") : "source code";
                     }
+                    p {
+                        : "Special thanks to panic whose ";
+                        a(href = "http://critelli.technology/transmogrification.html") : "Tonic of Transmogrification reagent builder";
+                        : " served as the basis for parts of this website's code!";
+                    }
                 }
                 script(src = static_url!("transmogrification.js"));
                 @if let Some(js_state) = js_state {
