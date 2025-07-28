@@ -638,7 +638,7 @@ async function updateDownload() {
         document.getElementById('result').style.display = 'none';
         return;
     } else {
-        let response = await fetch(new Request('/api/v1/molecule-from-state', {
+        let response = await fetch(new Request('/api/v2/molecule-from-state', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -658,9 +658,9 @@ async function updateDownload() {
                     await navigator.clipboard.writeText(data.rustCode);
                 });
                 document.getElementById('result').replaceChildren(message);
-            } else if (data.appearances.every(val => val[2] === data.appearances[0][2])) {
+            } else if (data.appearances.every(val => val.name === data.appearances[0].name)) {
                 const name = document.createElement('h1');
-                name.appendChild(document.createTextNode(data.appearances[0][2]));
+                name.appendChild(document.createTextNode(data.appearances[0].name));
                 const appearances = document.createElement('p');
                 data.appearances.forEach((val, idx) => {
                     if (idx > 0) {
@@ -669,10 +669,16 @@ async function updateDownload() {
                         comma.appendChild(document.createTextNode(', '));
                         appearances.appendChild(comma);
                     }
-                    appearances.appendChild(document.createTextNode(val[0]));
+                    let puzzle = document.createTextNode(val.puzzle);
+                    if (val.url !== null) {
+                        puzzle = document.createElement('a');
+                        puzzle.setAttribute('href', val.url);
+                        puzzle.appendChild(document.createTextNode(val.puzzle));
+                    }
+                    appearances.appendChild(puzzle);
                     const inOut = document.createElement('em');
                     inOut.setAttribute('class', 'muted');
-                    switch (val[1]) {
+                    switch (val.inout) {
                         case 'Reagent': {
                             inOut.setAttribute('title', 'appears as reagent');
                             inOut.appendChild(document.createTextNode(' r'));
@@ -700,7 +706,7 @@ async function updateDownload() {
                 const inner = document.createElement('em');
                 inner.appendChild(document.createTextNode('multiple names'));
                 message.appendChild(inner);
-                const names = data.appearances.map(val => val[2]).filter((val, idx, array) => array.indexOf(val) === idx);
+                const names = data.appearances.map(val => val.name).filter((val, idx, array) => array.indexOf(val) === idx);
                 const appearances = names.map((name) => {
                     const nameElt = document.createElement('p');
                     const prefix = document.createElement('span');
@@ -712,17 +718,23 @@ async function updateDownload() {
                     colon.setAttribute('class', 'muted');
                     colon.appendChild(document.createTextNode(': '));
                     nameElt.appendChild(colon);
-                    data.appearances.filter(val => val[2] === name).forEach((val, idx) => {
+                    data.appearances.filter(val => val.name === name).forEach((val, idx) => {
                         if (idx > 0) {
                             const comma = document.createElement('span');
                             comma.setAttribute('class', 'muted');
                             comma.appendChild(document.createTextNode(', '));
                             nameElt.appendChild(comma);
                         }
-                        nameElt.appendChild(document.createTextNode(val[0]));
+                        let puzzle = document.createTextNode(val.puzzle);
+                        if (val.url !== null) {
+                            puzzle = document.createElement('a');
+                            puzzle.setAttribute('href', val.url);
+                            puzzle.appendChild(document.createTextNode(val.puzzle));
+                        }
+                        nameElt.appendChild(puzzle);
                         const inOut = document.createElement('em');
                         inOut.setAttribute('class', 'muted');
-                        switch (val[1]) {
+                        switch (val.inout) {
                             case 'Reagent': {
                                 inOut.setAttribute('title', 'appears as reagent');
                                 inOut.appendChild(document.createTextNode(' r'));

@@ -65,6 +65,7 @@ include!(concat!(env!("OUT_DIR"), "/static_files.rs"));
 
 mod molecules;
 mod proto;
+mod puzzle;
 mod unparse;
 mod util;
 
@@ -464,25 +465,65 @@ impl TryFrom<JsState> for Molecule {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct MoleculeResponse {
-    appearances: Vec<(String, InOut, String)>,
+struct MoleculeResponseV1 {
+    appearances: Vec<(String, InOut, &'static str)>,
     permalink: String,
     rust_code: String,
 }
 
 #[rocket::post("/api/v1/molecule-from-state", format = "json", data = "<state>")]
-fn molecule_from_state(state: Json<JsState>) -> Result<Json<MoleculeResponse>, Status> {
+fn molecule_from_state_v1(state: Json<JsState>) -> Result<Json<MoleculeResponseV1>, Status> {
     let molecule = Molecule::try_from(state.0).map_err(|()| Status::BadRequest)?;
     let mut permalink = Vec::default();
     FormMolecule(molecule.clone()).write_sync(&mut permalink).map_err(|_| Status::BadRequest)?;
-    let mut response = MoleculeResponse {
+    let mut response = MoleculeResponseV1 {
         appearances: Vec::default(),
         permalink: BASE64.encode(permalink),
         rust_code: format!("{:?}", Unparse(&molecule)),
     };
     for (iter_molecule, appearances) in molecules::molecules() {
         if iter_molecule == molecule {
-            response.appearances = appearances.into_iter().map(|(puzzle_name, inout, name)| (puzzle_name.to_owned(), inout, name.to_owned())).collect();
+            response.appearances = appearances.into_iter().map(|(puzzle, inout, name)| (format!("{puzzle}{}", if puzzle.is_custom() { "*" } else { "" }), inout, name)).collect();
+            break
+        }
+    }
+    Ok(Json(response))
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MoleculeResponseV2 {
+    appearances: Vec<Appearance>,
+    permalink: String,
+    rust_code: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Appearance {
+    puzzle: &'static str,
+    url: Option<&'static str>,
+    inout: InOut,
+    name: &'static str,
+}
+
+#[rocket::post("/api/v2/molecule-from-state", format = "json", data = "<state>")]
+fn molecule_from_state_v2(state: Json<JsState>) -> Result<Json<MoleculeResponseV2>, Status> {
+    let molecule = Molecule::try_from(state.0).map_err(|()| Status::BadRequest)?;
+    let mut permalink = Vec::default();
+    FormMolecule(molecule.clone()).write_sync(&mut permalink).map_err(|_| Status::BadRequest)?;
+    let mut response = MoleculeResponseV2 {
+        appearances: Vec::default(),
+        permalink: BASE64.encode(permalink),
+        rust_code: format!("{:?}", Unparse(&molecule)),
+    };
+    for (iter_molecule, appearances) in molecules::molecules() {
+        if iter_molecule == molecule {
+            response.appearances = appearances.into_iter().map(|(puzzle, inout, name)| Appearance {
+                puzzle: puzzle.as_str(),
+                url: puzzle.url(),
+                inout, name,
+            }).collect();
             break
         }
     }
@@ -523,7 +564,8 @@ fn rocket() -> _ {
     })
     .mount("/", rocket::routes![
         index,
-        molecule_from_state,
+        molecule_from_state_v1,
+        molecule_from_state_v2,
         molecules_list,
     ])
     .mount("/static", FileServer::new("assets/static", rocket::fs::Options::None))
