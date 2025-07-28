@@ -1,10 +1,10 @@
 html {
     min-height: 100%;
+    overflow-y: scroll;
+    scrollbar-color: white #333344;
 }
 body {
     background: #333344;
-    background: linear-gradient(to bottom, #333344, #2a2a3b);
-    background: -moz-linear-gradient(#333344, #333344);
     margin: 20px;
     color: #eee;
     font-family: 'Helvetica Neue', 'Helvetica', sans-serif;
@@ -46,7 +46,7 @@ canvas {
     padding: 8px;
 }
 .canvas-button > a:hover {
-    background-color: bl #2a2a3b;
+    background-color: #282838;
 }
 .canvas-button#clear {
     top: 25px;
