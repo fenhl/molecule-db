@@ -152,6 +152,7 @@ puzzles! {
     "Quintessential Medium", QuintessentialMedium, None,
     "Radio Receivers", RadioReceivers, Some("https://events.critelli.technology/Week_8_RadioReceivers"),
     "Rat Poison", RatPoison, None,
+    "Ravari's Road", RavarisRoad, Some("https://events.critelli.technology/OM2025Weeklies7_RavarisRoad"),
     "Ravari's Wheel", RavarisWheel, None,
     "Reactive Cinnabar", ReactiveCinnabar, None,
     "Reactive Gold", ReactiveGold, None,

@@ -227,6 +227,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, InOut, &'static str)>)>
             (Puzzle::DarkMatterCandidate, InOut::Reagent, "Elemental Copper"),
             (Puzzle::ThermicCapacitor, InOut::Reagent, "Elemental Copper"),
             (Puzzle::JewelBox, InOut::Reagent, "Elemental Copper"),
+            (Puzzle::RavarisRoad, InOut::Product, "Elemental Copper"),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Earth], bonds: collect![] }, vec![
             (Puzzle::FacePowder, InOut::Reagent, "Elemental Earth"),
@@ -287,6 +288,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, InOut, &'static str)>)>
             (Puzzle::CoolEarrings, InOut::Reagent, "Elemental Gold (1)"),
             (Puzzle::ElementalComparator, InOut::Reagent, "Elemental Gold (1)"),
             (Puzzle::HabitabilityDetector, InOut::Reagent, "Elemental Gold (1)"),
+            (Puzzle::RavarisRoad, InOut::Product, "Elemental Gold (1)"),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Gold, HexIndex { q: 1, r: 0 } => Atom::Gold, HexIndex { q: 2, r: 0 } => Atom::Gold, HexIndex { q: 3, r: 0 } => Atom::Repeat], bonds: collect![Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 1, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 0 }, end: HexIndex { q: 2, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 0 }, end: HexIndex { q: 3, r: 0 }, ty: BondType::Normal }] }, vec![
             (Puzzle::ElectrumSeparation, InOut::Product, "Elemental Gold (2)"),
@@ -301,6 +303,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, InOut, &'static str)>)>
             (Puzzle::DehydratedWater, InOut::Reagent, "Elemental Iron"),
             (Puzzle::BiosteelFilament, InOut::Reagent, "Elemental Iron"),
             (Puzzle::ThermiteTape, InOut::Reagent, "Elemental Iron"),
+            (Puzzle::RavarisRoad, InOut::Product, "Elemental Iron"),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Lead], bonds: collect![] }, vec![
             (Puzzle::RefinedGold, InOut::Reagent, "Elemental Lead"),
@@ -331,6 +334,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, InOut, &'static str)>)>
             (Puzzle::BurningSpiritOfSaturn, InOut::Product, "Elemental Lead"),
             (Puzzle::SmogNeutralization, InOut::Reagent, "Elemental Lead"),
             (Puzzle::Asbestos, InOut::Reagent, "Elemental Lead"),
+            (Puzzle::RavarisRoad, InOut::Both, "Elemental Lead"),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Mors], bonds: collect![] }, vec![
             (Puzzle::AssassinsFilament, InOut::Reagent, "Elemental Mors"),
@@ -362,6 +366,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, InOut, &'static str)>)>
             (Puzzle::TheAmazingEverythingMachine, InOut::Reagent, "Elemental Quicksilver"),
             (Puzzle::MemoryLane, InOut::Reagent, "Elemental Quicksilver"),
             (Puzzle::JewelBox, InOut::Reagent, "Elemental Quicksilver"),
+            (Puzzle::RavarisRoad, InOut::Both, "Elemental Quicksilver"),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Quintessence], bonds: collect![] }, vec![
             (Puzzle::ProofOfCompleteness, InOut::Reagent, "Elemental Quintessence"),
@@ -415,12 +420,14 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, InOut, &'static str)>)>
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Silver], bonds: collect![] }, vec![
             (Puzzle::SophickMercury, InOut::Reagent, "Elemental Silver (2)"),
+            (Puzzle::RavarisRoad, InOut::Product, "Elemental Silver (2)"),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Tin], bonds: collect![] }, vec![
             (Puzzle::FragrantPowders, InOut::Reagent, "Elemental Tin"),
             (Puzzle::LubricatingFilament, InOut::Reagent, "Elemental Tin"),
             (Puzzle::CelestialThread, InOut::Reagent, "Elemental Tin"),
             (Puzzle::EmbalmingFluid, InOut::Reagent, "Elemental Tin"),
+            (Puzzle::RavarisRoad, InOut::Product, "Elemental Tin"),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Vitae], bonds: collect![] }, vec![
             (Puzzle::HealthTonic, InOut::Reagent, "Elemental Vitae"),
