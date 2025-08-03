@@ -10,7 +10,7 @@ if (-not $?)
     throw 'Native Failure'
 }
 
-ssh fenhl.net cargo install-update --all --git
+ssh fenhl.net cargo install-update -fg molecule-db
 if (-not $?)
 {
     throw 'Native Failure'
