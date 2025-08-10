@@ -54,6 +54,7 @@ puzzles! {
     "Black Powder", BlackPowder, Some("https://events.critelli.technology/OM2023Weeklies_BlackPowder"),
     "Blood-Stanching Powder", BloodStanchingPowder, None,
     "Blue Vitriol", BlueVitriol, Some("https://events.critelli.technology/bb94e99e5b9f4d14791f50e953e6f2bb"),
+    "Boozesort", Boozesort, Some("https://events.critelli.technology/OM2025Weeklies8_Boozesort"),
     "Brazing Cathode", BrazingCathode, Some("https://events.critelli.technology/OM2022Weeklies_BrazingCathode"),
     "Breathable Fluid", BreathableFluid, Some("https://events.critelli.technology/OM2024Weeklies_BreathableFluid"),
     "Bulk Transmutation", BulkTransmutation, Some("https://events.critelli.technology/OM2025week6_Bulk_Transmutation"),

@@ -945,6 +945,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, InOut, &'static str)>)>
             (Puzzle::Touchstone, InOut::Reagent, "Icelandic Lava Salt"),
             (Puzzle::SelfOrganizingFluid, InOut::Reagent, "Stabilized Fire"),
             (Puzzle::MemoryLane, InOut::Reagent, "Stabilized Fire"),
+            (Puzzle::Boozesort, InOut::Reagent, "Stabilized Fire"),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Salt, HexIndex { q: 0, r: 1 } => Atom::Gold], bonds: collect![Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 0, r: 1 }, ty: BondType::Normal }] }, vec![
             (Puzzle::StabilizedGold, InOut::Product, "Stabilized Gold"),
@@ -964,6 +965,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, InOut, &'static str)>)>
             (Puzzle::ProofOfCompleteness, InOut::Product, "Stabilized Water"),
             (Puzzle::EmbalmingFluid, InOut::Reagent, "Stabilized Water"),
             (Puzzle::SelfOrganizingFluid, InOut::Reagent, "Stabilized Water"),
+            (Puzzle::Boozesort, InOut::Reagent, "Stabilized Water"),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 1 } => Atom::Salt, HexIndex { q: 0, r: 2 } => Atom::Air, HexIndex { q: 0, r: 3 } => Atom::Water, HexIndex { q: 0, r: 4 } => Atom::Salt, HexIndex { q: 1, r: 2 } => Atom::Tin, HexIndex { q: 2, r: 0 } => Atom::Salt, HexIndex { q: 2, r: 1 } => Atom::Water, HexIndex { q: 2, r: 2 } => Atom::Air, HexIndex { q: 2, r: 3 } => Atom::Salt], bonds: collect![Bond { start: HexIndex { q: 0, r: 1 }, end: HexIndex { q: 0, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 2 }, end: HexIndex { q: 1, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 3 }, end: HexIndex { q: 0, r: 4 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 3 }, end: HexIndex { q: 1, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 2 }, end: HexIndex { q: 2, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 2 }, end: HexIndex { q: 2, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 0 }, end: HexIndex { q: 2, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 2 }, end: HexIndex { q: 2, r: 3 }, ty: BondType::Normal }] }, vec![
             (Puzzle::StainRemover, InOut::Product, "Stain Remover"),
