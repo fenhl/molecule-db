@@ -20,7 +20,8 @@ unused_qualifications = "deny"
 warnings = "deny"
 
 [build-dependencies]
-git2 = "0.20" # gix is much slower here
+gix = "0.73" # much slower than git2 but avoids a C dependency on openssl-sys
+itertools = "0.14"
 thiserror = "2"
 
 [dependencies]
