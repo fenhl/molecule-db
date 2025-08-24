@@ -134,6 +134,7 @@ puzzles! {
     "Mist of Hallucination", MistOfHallucination, None,
     "Mist of Incapacitation", MistOfIncapacitation, None,
     "Nightmare Fuel", NightmareFuel, Some("https://events.critelli.technology/OM2022Weeklies_NightmareFuel"),
+    "Nylon", Nylon, Some("https://events.critelli.technology/OM2025Weeklies9_Nylon"),
     "Ornamental Plating", OrnamentalPlating, Some("https://events.critelli.technology/OM2024Weeklies_OrnamentalPlating"),
     "Palatable Tissue", PalatableTissue, Some("https://events.critelli.technology/OM2024Weeklies_PalatableTissue"),
     "Parade-Rocket Fuel", ParadeRocketFuel, None,
