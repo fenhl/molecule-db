@@ -158,6 +158,7 @@ puzzles! {
     "Ravari's Wheel", RavarisWheel, None,
     "Reactive Cinnabar", ReactiveCinnabar, None,
     "Reactive Gold", ReactiveGold, None,
+    "Recipe for Disaster", RecipeForDisaster, Some("https://events.critelli.technology/OM2025Weeklies10_RecipeForDisaster"),
     "Reconstructed Solvent", ReconstructedSolvent, None,
     "Refined Bronze", RefinedBronze, None,
     "Refined Gold", RefinedGold, None,
