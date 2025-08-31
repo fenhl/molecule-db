@@ -133,6 +133,7 @@ puzzles! {
     "Memory Lane", MemoryLane, Some("https://events.critelli.technology/OM2025week8_Memory_Lane"),
     "Mist of Hallucination", MistOfHallucination, None,
     "Mist of Incapacitation", MistOfIncapacitation, None,
+    "Moonlight Catalyst", MoonlightCatalyst, Some("https://events.critelli.technology/OM2025Weeklies11_MoonlightCatalyst"),
     "Nightmare Fuel", NightmareFuel, Some("https://events.critelli.technology/OM2022Weeklies_NightmareFuel"),
     "Nylon", Nylon, Some("https://events.critelli.technology/OM2025Weeklies9_Nylon"),
     "Ornamental Plating", OrnamentalPlating, Some("https://events.critelli.technology/OM2024Weeklies_OrnamentalPlating"),
