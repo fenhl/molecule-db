@@ -75,3 +75,28 @@ main > div {
 .muted {
     color: #bbbbc2;
 }
+
+@media (prefers-color-scheme: light) {
+    html {
+        scrollbar-color: black #bbbbcc;
+    }
+    body {
+        background: #bbbbcc;
+        color: #111;
+    }
+    .emphasized-section {
+        background-color: #ccd;
+    }
+    .canvas-button > a {
+        background-color: #c4c4d5;
+    }
+    .canvas-button > a:hover {
+        background-color: #d0d0e0;
+    }
+    h2 {
+        color: #111;
+    }
+    .muted {
+        color: #445;
+    }
+}
