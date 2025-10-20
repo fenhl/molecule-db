@@ -123,12 +123,13 @@ function roundRect(ctx, x, y, w, h, r) {
 }
 
 function draw(canvas, state) {
+    const isLight = window.matchMedia('(prefers-color-scheme: light)').matches;
     const ctx = canvas.getContext('2d');
     ctx.save();
-    ctx.fillStyle = '#223';
+    ctx.fillStyle = isLight ? '#ccd' : '#223';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-    ctx.fillStyle = '#2a2a3b';
+    ctx.fillStyle = isLight ? '#c4c4d5' : '#2a2a3b';
     ctx.fillRect(0, 0, drawerWidth, height);
     visit(null, function (i0, j0, i1, j1, x, y, rotation) {
         const bond = state[`${i0},${j0}:${i1},${j1}`];
@@ -143,11 +144,11 @@ function draw(canvas, state) {
     visit(function (i, j, x, y) {
         const atom = state[`${i},${j}`];
         if (!atom) {
-            ctx.fillStyle = '#112';
+            ctx.fillStyle = isLight ? '#dde' : '#112';
             ctx.fillRect(x - 1, y - 1, 4, 4);
             return;
         }
-        ctx.fillStyle = atomStyle[atom].shadowStyle;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
         ctx.beginPath();
         ctx.ellipse(x + 4, y + 4, 29, 29, 0, 0, 2 * Math.PI);
         ctx.fill();
@@ -166,7 +167,7 @@ function draw(canvas, state) {
         const atom = state[`${i},${j}`];
         if (!atom)
             return;
-        ctx.fillStyle = atomStyle[atom].shadowStyle;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
         ctx.beginPath();
         ctx.ellipse(x + 2, y + 2, 29, 29, 0, 0, 2 * Math.PI);
         ctx.fill();
@@ -179,31 +180,29 @@ function draw(canvas, state) {
     });
     visitDrawer(function (x, y, atom) {
         if (atom === state['selectedAtom']) {
-            ctx.fillStyle = '#112';
+            ctx.fillStyle = isLight ? '#aab' : '#112';
             ctx.beginPath();
             ctx.ellipse(x, y, 45, 45, 0, 0, 2 * Math.PI);
             ctx.fill();
-        } else {
-            ctx.fillStyle = atomStyle[atom].shadowStyle;
-            ctx.beginPath();
-            ctx.ellipse(x + 4, y + 4, 29, 29, 0, 0, 2 * Math.PI);
-            ctx.fill();
         }
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+        ctx.beginPath();
+        ctx.ellipse(x + 4, y + 4, 29, 29, 0, 0, 2 * Math.PI);
+        ctx.fill();
     }, function (x, y, bond) {
         if (bond === state['selectedBond']) {
-            ctx.fillStyle = '#223';
+            ctx.fillStyle = isLight ? '#aab' : '#223';
             ctx.save();
             ctx.translate(x, y);
             ctx.beginPath();
             roundRect(ctx, -40, -30, 80, 60, 20);
             ctx.fill();
             ctx.restore();
-        } else {
-            ctx.save();
-            ctx.translate(x + 4, y + 4);
-            drawBond(ctx, bond.includes('r'), bond.includes('k'), bond.includes('y'), 40, 'shadow');
-            ctx.restore();
         }
+        ctx.save();
+        ctx.translate(x + 4, y + 4);
+        drawBond(ctx, bond.includes('r'), bond.includes('k'), bond.includes('y'), 40, 'shadow');
+        ctx.restore();
     });
     visitDrawer(function (x, y, atom) {
         drawAtom(ctx, atom, x, y);
