@@ -90,6 +90,9 @@ main > div {
     .emphasized-section {
         background-color: #ccd;
     }
+    .molecule-canvas {
+        background-color: #ccd;
+    }
     .canvas-button > a {
         background-color: #c4c4d5;
     }
