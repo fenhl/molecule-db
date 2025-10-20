@@ -36,6 +36,9 @@ canvas {
     -ms-user-select: none;
     user-select: none;
 }
+.molecule-canvas {
+    background-color: #223;
+}
 .canvas-button {
     position: absolute;
 }

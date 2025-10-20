@@ -179,7 +179,7 @@ impl MoleculeExt for Molecule {
         let width = (41 * width + 10) * 3 / 4;
         let height = (71 * height + 20) * 3 / 4;
         html! {
-            canvas(id = id);
+            canvas(class = "molecule-canvas", id = id);
             script {
                 : RawHtml(format!("
                     const productCanvas{id} = document.getElementById({id:?});
@@ -191,7 +191,6 @@ impl MoleculeExt for Molecule {
                     pctx{id}.scale(window.devicePixelRatio, window.devicePixelRatio);
                     pctx{id}.scale(0.75, 0.75);
                     pctx{id}.fillStyle = '#223';
-                    pctx{id}.fillRect(0, 0, productCanvas{id}.width, productCanvas{id}.height);
                     for (let shadow = 4; shadow >= 0; shadow -= 4) {{
                 "));
                 @for Bond { start, end, ty } in bonds {
