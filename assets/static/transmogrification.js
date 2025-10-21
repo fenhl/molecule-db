@@ -148,7 +148,7 @@ function draw(canvas, state) {
             ctx.fillRect(x - 1, y - 1, 4, 4);
             return;
         }
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+        ctx.fillStyle = atomStyle[atom].shadowStyle;
         ctx.beginPath();
         ctx.ellipse(x + 4, y + 4, 29, 29, 0, 0, 2 * Math.PI);
         ctx.fill();
@@ -167,7 +167,7 @@ function draw(canvas, state) {
         const atom = state[`${i},${j}`];
         if (!atom)
             return;
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+        ctx.fillStyle = atomStyle[atom].shadowStyle;
         ctx.beginPath();
         ctx.ellipse(x + 2, y + 2, 29, 29, 0, 0, 2 * Math.PI);
         ctx.fill();
