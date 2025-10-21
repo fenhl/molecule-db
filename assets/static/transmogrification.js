@@ -227,6 +227,8 @@ function redraw() {
     ctx.drawImage(nextCanvas, 0, 0, canvas.width, canvas.height);
     ctx.restore();
 }
+
+window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', redraw);
 redraw();
 
 let mouseDown = false;
