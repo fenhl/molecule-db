@@ -20,7 +20,7 @@ unused_qualifications = "deny"
 warnings = "deny"
 
 [build-dependencies]
-gix = "0.73" # much slower than git2 but avoids a C dependency on openssl-sys
+gix = "0.75" # much slower than git2 but avoids a C dependency on openssl-sys
 itertools = "0.14"
 thiserror = "2"
 
@@ -31,9 +31,9 @@ collect-mac = "0.1.0"
 enum-iterator = "2.1.0"
 itertools = "0.14"
 mimalloc = "0.1.43"
-omsim-rs = { git = "https://github.com/fenhl/omsim-rs.git", branch = "dev-fenhl" }
+omsim-rs = { git = "https://github.com/fenhl/omsim-rs" }
 rocket = { version = "0.5.1", features = ["json"] }
-rocket-util = { git = "https://github.com/fenhl/rocket-util", branch = "main" }
+rocket-util = { git = "https://github.com/fenhl/rocket-util" }
 serde = { version = "1.0.204", features = ["derive"] }
 serde_json = "1.0.140"
 thiserror = "2.0.12"
