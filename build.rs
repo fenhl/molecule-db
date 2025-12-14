@@ -1,6 +1,9 @@
 use {
     std::{
-        collections::HashMap,
+        collections::{
+            HashMap,
+            HashSet,
+        },
         env,
         fs::{
             self,
@@ -51,6 +54,23 @@ fn check_static_dir(cache: &mut HashMap<PathBuf, ObjectId>, repo: &Repository, r
     Ok(())
 }
 
+fn check_static_file_no_git(cache: &mut HashSet<PathBuf>, relative_path: &Path) -> Result<(), Error> {
+    cache.insert(relative_path.to_owned());
+    Ok(())
+}
+
+fn check_static_dir_no_git(cache: &mut HashSet<PathBuf>, relative_path: &Path, path: PathBuf) -> Result<(), Error> {
+    for entry in fs::read_dir(&path)? {
+        let entry = entry?;
+        if entry.file_type()?.is_dir() {
+            check_static_dir_no_git(cache, &relative_path.join(entry.file_name()), entry.path())?;
+        } else {
+            check_static_file_no_git(cache, &relative_path.join(entry.file_name()))?;
+        }
+    }
+    Ok(())
+}
+
 #[derive(Debug, thiserror::Error)]
 enum Error {
     #[error(transparent)] GitCommit(#[from] gix::object::commit::Error),
@@ -65,25 +85,50 @@ enum Error {
 fn main() -> Result<(), Error> {
     println!("cargo:rerun-if-changed=nonexistent.foo"); // check a nonexistent file to make sure build script is always run (see https://github.com/rust-lang/cargo/issues/4213 and https://github.com/rust-lang/cargo/issues/5663)
     let static_dir = Path::new("assets").join("static");
-    let mut cache = HashMap::default();
-    let repo = gix::open(&env::var_os("CARGO_MANIFEST_DIR").unwrap())?;
-    for entry in fs::read_dir(&static_dir)? {
-        let entry = entry?;
-        if entry.file_type()?.is_dir() {
-            check_static_dir(&mut cache, &repo, entry.file_name().as_ref(), entry.path())?;
-        } else {
-            check_static_file(&mut cache, &repo, entry.file_name().as_ref(), entry.path())?;
+    match gix::open(&env::var_os("CARGO_MANIFEST_DIR").unwrap()) {
+        Ok(repo) => {
+            let mut cache = HashMap::default();
+            for entry in fs::read_dir(&static_dir)? {
+                let entry = entry?;
+                if entry.file_type()?.is_dir() {
+                    check_static_dir(&mut cache, &repo, entry.file_name().as_ref(), entry.path())?;
+                } else {
+                    check_static_file(&mut cache, &repo, entry.file_name().as_ref(), entry.path())?;
+                }
+            }
+            let mut out_f = File::create(Path::new(&env::var_os("OUT_DIR").unwrap()).join("static_files.rs"))?;
+            writeln!(&mut out_f, "macro_rules! static_url {{")?;
+            for (path, commit_id) in cache {
+                let unix_path = path.to_str().expect("non-UTF-8 static file path").replace('\\', "/");
+                let uri = format!("/static/{unix_path}?v={commit_id}");
+                writeln!(&mut out_f, "    ({unix_path:?}) => {{")?;
+                writeln!(&mut out_f, "        ::rocket_util::Origin(::rocket::uri!({uri:?}))")?;
+                writeln!(&mut out_f, "    }};")?;
+            }
+            writeln!(&mut out_f, "}}")?;
         }
+        Err(gix::open::Error::NotARepository { .. }) => {
+            let mut cache = HashSet::default();
+            for entry in fs::read_dir(&static_dir)? {
+                let entry = entry?;
+                if entry.file_type()?.is_dir() {
+                    check_static_dir_no_git(&mut cache, entry.file_name().as_ref(), entry.path())?;
+                } else {
+                    check_static_file_no_git(&mut cache, entry.file_name().as_ref())?;
+                }
+            }
+            let mut out_f = File::create(Path::new(&env::var_os("OUT_DIR").unwrap()).join("static_files.rs"))?;
+            writeln!(&mut out_f, "macro_rules! static_url {{")?;
+            for path in cache {
+                let unix_path = path.to_str().expect("non-UTF-8 static file path").replace('\\', "/");
+                let uri = format!("/static/{unix_path}");
+                writeln!(&mut out_f, "    ({unix_path:?}) => {{")?;
+                writeln!(&mut out_f, "        ::rocket_util::Origin(::rocket::uri!({uri:?}))")?;
+                writeln!(&mut out_f, "    }};")?;
+            }
+            writeln!(&mut out_f, "}}")?;
+        }
+        Err(e) => return Err(e.into()),
     }
-    let mut out_f = File::create(Path::new(&env::var_os("OUT_DIR").unwrap()).join("static_files.rs"))?;
-    writeln!(&mut out_f, "macro_rules! static_url {{")?;
-    for (path, commit_id) in cache {
-        let unix_path = path.to_str().expect("non-UTF-8 static file path").replace('\\', "/");
-        let uri = format!("/static/{unix_path}?v={commit_id}");
-        writeln!(&mut out_f, "    ({unix_path:?}) => {{")?;
-        writeln!(&mut out_f, "        ::rocket_util::Origin(::rocket::uri!({uri:?}))")?;
-        writeln!(&mut out_f, "    }};")?;
-    }
-    writeln!(&mut out_f, "}}")?;
     Ok(())
 }
