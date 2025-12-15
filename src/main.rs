@@ -319,6 +319,7 @@ fn index(m: Option<FormMolecule>) -> Result<RawHtml<String>, IndexError> {
                 meta(charset = "utf-8");
                 title : "Opus Magnum Molecule Database";
                 meta(name = "viewport", content = "width=device-width, initial-scale=1, shrink-to-fit=no");
+                link(rel = "icon", href = static_url!("favicon.svg"));
                 link(rel = "stylesheet", href = static_url!("common.css"));
                 script(src = static_url!("common.js"));
             }
@@ -538,6 +539,7 @@ fn molecules_list() -> RawHtml<String> {
                 meta(charset = "utf-8");
                 title : "Opus Magnum Molecule Database";
                 meta(name = "viewport", content = "width=device-width, initial-scale=1, shrink-to-fit=no");
+                link(rel = "icon", href = static_url!("favicon.svg"));
                 link(rel = "stylesheet", href = static_url!("common.css"));
                 script(src = static_url!("common.js"));
             }

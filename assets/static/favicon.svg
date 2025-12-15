@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="-1 -1 2 2" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="0" cy="0" r="1" fill="#fcc" />
+    <path d="M 0 -0.45 L 0.32 0.1 L -0.32 0.1 Z" stroke="#d99" stroke-width="0.1" fill="transparent" />
+    <path d="M 0 0.1 L 0 0.55" stroke="#d99" stroke-width="0.1" fill="transparent" />
+    <path d="M -0.2 0.325 L 0.2 0.325" stroke="#d99" stroke-width="0.1" fill="transparent" />
+</svg>
