@@ -177,6 +177,7 @@ puzzles! {
     "Self-Organizing Fluid", SelfOrganizingFluid, Some("https://events.critelli.technology/OM2025week3_Self-Organizing_Fluid"),
     "Self-Pressurizing Gas", SelfPressurizingGas, Some("https://events.critelli.technology/OM2023_W1_SelfPressurizingGas"),
     "Servin's Wheel", ServinsWheel, Some("https://events.critelli.technology/OM2022Weeklies_ServinsWheel"),
+    "Silver Apple of Discord", SilverAppleOfDiscord, Some("https://events.critelli.technology/3e07b2ebbabd5ea7e9b87f8cd35d679f"),
     "Silver Caustic", SilverCaustic, None,
     "Silver Paint", SilverPaint, None,
     "Simulacrum", Simulacrum, Some("https://events.critelli.technology/ff3f211965e5ba83ac8a080335ddd04e"),

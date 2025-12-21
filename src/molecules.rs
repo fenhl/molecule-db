@@ -666,6 +666,9 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, InOut, &'static str)>)>
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Copper, HexIndex { q: 0, r: 1 } => Atom::Iron, HexIndex { q: 0, r: 3 } => Atom::Copper, HexIndex { q: 1, r: 1 } => Atom::Quicksilver, HexIndex { q: 1, r: 2 } => Atom::Iron, HexIndex { q: 2, r: 0 } => Atom::Iron, HexIndex { q: 3, r: 0 } => Atom::Copper], bonds: collect![Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 0, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 1 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 3 }, end: HexIndex { q: 1, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 1 }, end: HexIndex { q: 1, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 1 }, end: HexIndex { q: 2, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 0 }, end: HexIndex { q: 3, r: 0 }, ty: BondType::Normal }] }, vec![
             (Puzzle::MartialRegulus, InOut::Product, "Martial Regulus"),
         ]),
+        (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Quicksilver, HexIndex { q: 0, r: 1 } => Atom::Silver], bonds: collect![Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 0, r: 1 }, ty: BondType::Normal }] }, vec![
+            (Puzzle::SilverAppleOfDiscord, InOut::Product, "Mercurial silver"),
+        ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 1 } => Atom::Iron, HexIndex { q: 1, r: 1 } => Atom::Quicksilver, HexIndex { q: 1, r: 2 } => Atom::Lead, HexIndex { q: 2, r: 0 } => Atom::Tin], bonds: collect![Bond { start: HexIndex { q: 0, r: 1 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 1 }, end: HexIndex { q: 1, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 1 }, end: HexIndex { q: 2, r: 0 }, ty: BondType::Normal }] }, vec![
             (Puzzle::Critellium, InOut::Reagent, "Metal Slag"),
         ]),
@@ -839,6 +842,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, InOut, &'static str)>)>
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Quicksilver, HexIndex { q: 0, r: 1 } => Atom::Lead], bonds: collect![Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 0, r: 1 }, ty: BondType::Normal }] }, vec![
             (Puzzle::ReactiveGold, InOut::Reagent, "Reactive Lead"),
+            (Puzzle::SilverAppleOfDiscord, InOut::Reagent, "Mercurial lead"),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Quicksilver, HexIndex { q: 0, r: 1 } => Atom::Tin], bonds: collect![Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 0, r: 1 }, ty: BondType::Normal }] }, vec![
             (Puzzle::RadioReceivers, InOut::Reagent, "Reactive Tin"),
