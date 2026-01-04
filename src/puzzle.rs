@@ -65,6 +65,7 @@ puzzles! {
     "Climbing Rope Fiber", ClimbingRopeFiber, None,
     "Conductive Enamel", ConductiveEnamel, None,
     "Cool Earrings", CoolEarrings, Some("https://events.critelli.technology/OM2023_WO_CoolEarrings"),
+    "Corporate Waste Reduction", CorporateWasteReduction, Some("https://events.critelli.technology/88fed58ce6219be91a046e9a62a004c7"),
     "Courage Potion", CouragePotion, None,
     "Critellium", Critellium, Some("https://events.critelli.technology/e8f14a0982aaacbb3254457e77c23a0b"),
     "Crystallized Air", CrystallizedAir, Some("https://events.critelli.technology/OM2025week5_Crystallized_Air"),
