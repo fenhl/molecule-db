@@ -712,7 +712,7 @@ async function updateDownload() {
                     const name = document.createElement('h1');
                     name.appendChild(document.createTextNode(firstName));
                     const appearances = document.createElement('p');
-                    data.appearances.filter(val => val.name === firstName).forEach((val, idx) => {
+                    data.appearances.filter(val => val.name !== null).forEach((val, idx) => {
                         if (idx > 0) {
                             const comma = document.createElement('span');
                             comma.setAttribute('class', 'muted');
@@ -803,7 +803,7 @@ async function updateDownload() {
                     const inner = document.createElement('em');
                     inner.appendChild(document.createTextNode('multiple names'));
                     message.appendChild(inner);
-                    const names = data.appearances.map(val => val.name).filter((val, idx, array) => array.indexOf(val) === idx);
+                    const names = data.appearances.map(val => val.name).filter((val, idx, array) => val !== null && array.indexOf(val) === idx);
                     const appearances = names.map((name) => {
                         const nameElt = document.createElement('p');
                         const prefix = document.createElement('span');
