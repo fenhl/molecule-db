@@ -85,6 +85,7 @@ puzzles! {
     "Electrum Separation", ElectrumSeparation, None,
     "Elemental Comparator", ElementalComparator, Some("https://events.critelli.technology/OM2023_W8w_ElementalComparator"),
     "Embalming Fluid", EmbalmingFluid, None,
+    "End Game", EndGame, Some("https://events.critelli.technology/OM2023_W0_EndGame"),
     "Ephemeral Matrix", EphemeralMatrix, Some("https://events.critelli.technology/5a5504a1f72574d23012a6458d1a29b1"),
     "Explorer's Salve", ExplorersSalve, None,
     "Explosive Phial", ExplosivePhial, None,

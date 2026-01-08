@@ -297,6 +297,28 @@ impl UriDisplay<Query> for FormMolecule {
 
 impl_from_uri_param_identity!([Query] FormMolecule);
 
+fn footer() -> RawHtml<String> { //TODO make this a const (requires const_html macro)
+    html! {
+        footer(class = "muted") {
+            p {
+                : "hosted by ";
+                a(href = "https://fenhl.net/") : "Fenhl";
+                : " • ";
+                a(href = "https://fenhl.net/disc") : "disclaimer";
+                : " • ";
+                a(href = "https://status.fenhl.net/") : "status";
+                : " • ";
+                a(href = "https://github.com/fenhl/molecule-db") : "source code";
+            }
+            p {
+                : "Special thanks to panic whose ";
+                a(href = "http://critelli.technology/transmogrification.html") : "Tonic of Transmogrification reagent builder";
+                : " served as the basis for parts of this website's code!";
+            }
+        }
+    }
+}
+
 #[derive(Debug, thiserror::Error, rocket_util::Error)]
 enum IndexError {
     #[error(transparent)] Json(#[from] serde_json::Error),
@@ -347,21 +369,7 @@ fn index(m: Option<FormMolecule>) -> Result<RawHtml<String>, IndexError> {
                     }
                 }
                 canvas(id = "next", style = "display: none;");
-                footer(class = "muted") {
-                    p {
-                        : "hosted by ";
-                        a(href = "https://fenhl.net/") : "Fenhl";
-                        : " • ";
-                        a(href = "https://fenhl.net/disc") : "disclaimer";
-                        : " • ";
-                        a(href = "https://github.com/fenhl/molecule-db") : "source code";
-                    }
-                    p {
-                        : "Special thanks to panic whose ";
-                        a(href = "http://critelli.technology/transmogrification.html") : "Tonic of Transmogrification reagent builder";
-                        : " served as the basis for parts of this website's code!";
-                    }
-                }
+                : footer();
                 script(src = static_url!("transmogrification.js"));
                 @if let Some(js_state) = js_state {
                     script : RawHtml(format!("
@@ -593,6 +601,7 @@ fn molecules_list() -> RawHtml<String> {
                         }
                     }
                 }
+                : footer();
             }
         }
     }
