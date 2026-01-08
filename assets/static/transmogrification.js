@@ -639,7 +639,7 @@ async function updateDownload() {
         document.getElementById('result').style.display = 'none';
         return;
     } else {
-        let response = await fetch(new Request('/api/v2/molecule-from-state', {
+        let response = await fetch(new Request('/api/v3/molecule-from-state', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -659,9 +659,13 @@ async function updateDownload() {
                     await navigator.clipboard.writeText(data.rustCode);
                 });
                 document.getElementById('result').replaceChildren(message);
-            } else if (data.appearances.every(val => val.name === data.appearances[0].name)) {
-                const name = document.createElement('h1');
-                name.appendChild(document.createTextNode(data.appearances[0].name));
+            } else if (data.appearances.every(val => val.name === null)) {
+                const message = document.createElement('h1');
+                message.setAttribute('class', 'muted');
+                message.appendChild(document.createTextNode('unnamed molecule'));
+                message.addEventListener('click', async function (e) {
+                    await navigator.clipboard.writeText(data.rustCode);
+                });
                 const appearances = document.createElement('p');
                 data.appearances.forEach((val, idx) => {
                     if (idx > 0) {
@@ -701,30 +705,19 @@ async function updateDownload() {
                     }
                     appearances.appendChild(inOut);
                 });
-                document.getElementById('result').replaceChildren(name, appearances);
+                document.getElementById('result').replaceChildren(message, appearances);
             } else {
-                const message = document.createElement('h1');
-                const inner = document.createElement('em');
-                inner.appendChild(document.createTextNode('multiple names'));
-                message.appendChild(inner);
-                const names = data.appearances.map(val => val.name).filter((val, idx, array) => array.indexOf(val) === idx);
-                const appearances = names.map((name) => {
-                    const nameElt = document.createElement('p');
-                    const prefix = document.createElement('span');
-                    prefix.setAttribute('class', 'muted');
-                    prefix.appendChild(document.createTextNode('as '));
-                    nameElt.appendChild(prefix);
-                    nameElt.appendChild(document.createTextNode(name));
-                    const colon = document.createElement('span');
-                    colon.setAttribute('class', 'muted');
-                    colon.appendChild(document.createTextNode(': '));
-                    nameElt.appendChild(colon);
-                    data.appearances.filter(val => val.name === name).forEach((val, idx) => {
+                const firstName = data.appearances.find(val => val.name !== null).name;
+                if (data.appearances.every(val => val.name === null || val.name === firstName)) {
+                    const name = document.createElement('h1');
+                    name.appendChild(document.createTextNode(firstName));
+                    const appearances = document.createElement('p');
+                    data.appearances.filter(val => val.name === firstName).forEach((val, idx) => {
                         if (idx > 0) {
                             const comma = document.createElement('span');
                             comma.setAttribute('class', 'muted');
                             comma.appendChild(document.createTextNode(', '));
-                            nameElt.appendChild(comma);
+                            appearances.appendChild(comma);
                         }
                         let puzzle = document.createTextNode(val.puzzle);
                         if (val.url !== null) {
@@ -732,7 +725,7 @@ async function updateDownload() {
                             puzzle.setAttribute('href', val.url);
                             puzzle.appendChild(document.createTextNode(val.puzzle));
                         }
-                        nameElt.appendChild(puzzle);
+                        appearances.appendChild(puzzle);
                         const inOut = document.createElement('em');
                         inOut.setAttribute('class', 'muted');
                         switch (val.inout) {
@@ -755,11 +748,161 @@ async function updateDownload() {
                                 throw 'unknown InOut kind';
                             }
                         }
-                        nameElt.appendChild(inOut);
+                        appearances.appendChild(inOut);
                     });
-                    return nameElt;
-                });
-                document.getElementById('result').replaceChildren(message, ...appearances);
+                    if (data.appearances.some(val => val.name === null)) {
+                        const unnamedAppearances = document.createElement('p');
+                        const prefix = document.createElement('span');
+                        prefix.setAttribute('class', 'muted');
+                        prefix.appendChild(document.createTextNode('unnamed: '));
+                        unnamedAppearances.appendChild(prefix);
+                        data.appearances.filter(val => val.name === null).forEach((val, idx) => {
+                            if (idx > 0) {
+                                const comma = document.createElement('span');
+                                comma.setAttribute('class', 'muted');
+                                comma.appendChild(document.createTextNode(', '));
+                                unnamedAppearances.appendChild(comma);
+                            }
+                            let puzzle = document.createTextNode(val.puzzle);
+                            if (val.url !== null) {
+                                puzzle = document.createElement('a');
+                                puzzle.setAttribute('href', val.url);
+                                puzzle.appendChild(document.createTextNode(val.puzzle));
+                            }
+                            unnamedAppearances.appendChild(puzzle);
+                            const inOut = document.createElement('em');
+                            inOut.setAttribute('class', 'muted');
+                            switch (val.inout) {
+                                case 'Reagent': {
+                                    inOut.setAttribute('title', 'appears as reagent');
+                                    inOut.appendChild(document.createTextNode(' r'));
+                                    break;
+                                }
+                                case 'Product': {
+                                    inOut.setAttribute('title', 'appears as product');
+                                    inOut.appendChild(document.createTextNode(' p'));
+                                    break;
+                                }
+                                case 'Both': {
+                                    inOut.setAttribute('title', 'appears as both reagent and product');
+                                    inOut.appendChild(document.createTextNode(' rp'));
+                                    break;
+                                }
+                                default: {
+                                    throw 'unknown InOut kind';
+                                }
+                            }
+                            unnamedAppearances.appendChild(inOut);
+                        });
+                        document.getElementById('result').replaceChildren(name, appearances, unnamedAppearances);
+                    } else {
+                        document.getElementById('result').replaceChildren(name, appearances);
+                    }
+                } else {
+                    const message = document.createElement('h1');
+                    const inner = document.createElement('em');
+                    inner.appendChild(document.createTextNode('multiple names'));
+                    message.appendChild(inner);
+                    const names = data.appearances.map(val => val.name).filter((val, idx, array) => array.indexOf(val) === idx);
+                    const appearances = names.map((name) => {
+                        const nameElt = document.createElement('p');
+                        const prefix = document.createElement('span');
+                        prefix.setAttribute('class', 'muted');
+                        prefix.appendChild(document.createTextNode('as '));
+                        nameElt.appendChild(prefix);
+                        nameElt.appendChild(document.createTextNode(name));
+                        const colon = document.createElement('span');
+                        colon.setAttribute('class', 'muted');
+                        colon.appendChild(document.createTextNode(': '));
+                        nameElt.appendChild(colon);
+                        data.appearances.filter(val => val.name === name).forEach((val, idx) => {
+                            if (idx > 0) {
+                                const comma = document.createElement('span');
+                                comma.setAttribute('class', 'muted');
+                                comma.appendChild(document.createTextNode(', '));
+                                nameElt.appendChild(comma);
+                            }
+                            let puzzle = document.createTextNode(val.puzzle);
+                            if (val.url !== null) {
+                                puzzle = document.createElement('a');
+                                puzzle.setAttribute('href', val.url);
+                                puzzle.appendChild(document.createTextNode(val.puzzle));
+                            }
+                            nameElt.appendChild(puzzle);
+                            const inOut = document.createElement('em');
+                            inOut.setAttribute('class', 'muted');
+                            switch (val.inout) {
+                                case 'Reagent': {
+                                    inOut.setAttribute('title', 'appears as reagent');
+                                    inOut.appendChild(document.createTextNode(' r'));
+                                    break;
+                                }
+                                case 'Product': {
+                                    inOut.setAttribute('title', 'appears as product');
+                                    inOut.appendChild(document.createTextNode(' p'));
+                                    break;
+                                }
+                                case 'Both': {
+                                    inOut.setAttribute('title', 'appears as both reagent and product');
+                                    inOut.appendChild(document.createTextNode(' rp'));
+                                    break;
+                                }
+                                default: {
+                                    throw 'unknown InOut kind';
+                                }
+                            }
+                            nameElt.appendChild(inOut);
+                        });
+                        return nameElt;
+                    });
+                    if (data.appearances.some(val => val.name === null)) {
+                        const unnamedAppearances = document.createElement('p');
+                        const prefix = document.createElement('span');
+                        prefix.setAttribute('class', 'muted');
+                        prefix.appendChild(document.createTextNode('unnamed: '));
+                        unnamedAppearances.appendChild(prefix);
+                        data.appearances.filter(val => val.name === null).forEach((val, idx) => {
+                            if (idx > 0) {
+                                const comma = document.createElement('span');
+                                comma.setAttribute('class', 'muted');
+                                comma.appendChild(document.createTextNode(', '));
+                                unnamedAppearances.appendChild(comma);
+                            }
+                            let puzzle = document.createTextNode(val.puzzle);
+                            if (val.url !== null) {
+                                puzzle = document.createElement('a');
+                                puzzle.setAttribute('href', val.url);
+                                puzzle.appendChild(document.createTextNode(val.puzzle));
+                            }
+                            unnamedAppearances.appendChild(puzzle);
+                            const inOut = document.createElement('em');
+                            inOut.setAttribute('class', 'muted');
+                            switch (val.inout) {
+                                case 'Reagent': {
+                                    inOut.setAttribute('title', 'appears as reagent');
+                                    inOut.appendChild(document.createTextNode(' r'));
+                                    break;
+                                }
+                                case 'Product': {
+                                    inOut.setAttribute('title', 'appears as product');
+                                    inOut.appendChild(document.createTextNode(' p'));
+                                    break;
+                                }
+                                case 'Both': {
+                                    inOut.setAttribute('title', 'appears as both reagent and product');
+                                    inOut.appendChild(document.createTextNode(' rp'));
+                                    break;
+                                }
+                                default: {
+                                    throw 'unknown InOut kind';
+                                }
+                            }
+                            unnamedAppearances.appendChild(inOut);
+                        });
+                        appearances.push(unnamedAppearances);
+                    }
+                    document.getElementById('result').replaceChildren(message, ...appearances);
+                }
             }
             document.getElementById('clear').style.display = '';
             document.getElementById('permalink').style.display = '';

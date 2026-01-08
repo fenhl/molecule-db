@@ -106,6 +106,7 @@ puzzles! {
     "Hydrophobic Water", HydrophobicWater, Some("https://events.critelli.technology/om2025week1_Hydrophobic_Water"),
     "Icelandic Lava Salt", IcelandicLavaSalt, Some("https://events.critelli.technology/952a099fce7b49281d4b95f0f37dae8e"),
     "Ignition Cord", IgnitionCord, Some("https://events.critelli.technology/OM2022Weeklies_IgnitionCord"),
+    "In Berlo's Basement", InBerlosBasement, Some("https://events.critelli.technology/66f74ef1aae21439a688b1cc54ca894c"),
     "Instant Mirror Coat", InstantMirrorCoat, Some("https://events.critelli.technology/OM2024Weeklies_InstantMirrorCoat"),
     "Invisible Ink", InvisibleInk, None,
     "Jewel Box", JewelBox, Some("https://events.critelli.technology/OM2025Weeklies1_JewelBox"),

@@ -483,7 +483,10 @@ fn molecule_from_state_v1(state: Json<JsState>) -> Result<Json<MoleculeResponseV
     };
     for (iter_molecule, appearances) in molecules::molecules() {
         if iter_molecule == molecule {
-            response.appearances = appearances.into_iter().map(|(puzzle, inout, name)| (format!("{puzzle}{}", if puzzle.is_custom() { "*" } else { "" }), inout, name)).collect();
+            response.appearances = appearances.into_iter()
+                .filter_map(|(puzzle, inout, name)| Some((puzzle, inout, name?)))
+                .map(|(puzzle, inout, name)| (format!("{puzzle}{}", if puzzle.is_custom() { "*" } else { "" }), inout, name))
+                .collect();
             break
         }
     }
@@ -504,11 +507,38 @@ struct Appearance {
     puzzle: &'static str,
     url: Option<&'static str>,
     inout: InOut,
-    name: &'static str,
+    name: Option<&'static str>,
 }
 
 #[rocket::post("/api/v2/molecule-from-state", format = "json", data = "<state>")]
 fn molecule_from_state_v2(state: Json<JsState>) -> Result<Json<MoleculeResponseV2>, Status> {
+    let molecule = Molecule::try_from(state.0).map_err(|()| Status::BadRequest)?;
+    let mut permalink = Vec::default();
+    FormMolecule(molecule.clone()).write_sync(&mut permalink).map_err(|_| Status::BadRequest)?;
+    let mut response = MoleculeResponseV2 {
+        appearances: Vec::default(),
+        permalink: BASE64.encode(permalink),
+        rust_code: format!("{:?}", Unparse(&molecule)),
+    };
+    for (iter_molecule, appearances) in molecules::molecules() {
+        if iter_molecule == molecule {
+            response.appearances = appearances.into_iter()
+                .filter_map(|(puzzle, inout, name)| Some((puzzle, inout, name?)))
+                .map(|(puzzle, inout, name)| Appearance {
+                    puzzle: puzzle.as_str(),
+                    url: puzzle.url(),
+                    name: Some(name),
+                    inout,
+                })
+                .collect();
+            break
+        }
+    }
+    Ok(Json(response))
+}
+
+#[rocket::post("/api/v3/molecule-from-state", format = "json", data = "<state>")]
+fn molecule_from_state_v3(state: Json<JsState>) -> Result<Json<MoleculeResponseV2>, Status> {
     let molecule = Molecule::try_from(state.0).map_err(|()| Status::BadRequest)?;
     let mut permalink = Vec::default();
     FormMolecule(molecule.clone()).write_sync(&mut permalink).map_err(|_| Status::BadRequest)?;
@@ -545,9 +575,20 @@ fn molecules_list() -> RawHtml<String> {
             }
             body {
                 main {
-                    @for (idx, (molecule, appearances)) in molecules::molecules().into_iter().sorted_unstable_by_key(|(_, appearances)| appearances.iter().map(|(_, _, name)| name).min().map(|name| name.to_owned())).enumerate() {
+                    @for (idx, (molecule, appearances)) in molecules::molecules().into_iter().sorted_unstable_by_key(|(_, appearances)| {
+                        let mut names = appearances.iter().filter_map(|(_, _, name)| *name).collect_vec();
+                        names.sort_unstable();
+                        names.dedup();
+                        (names.is_empty(), names)
+                    }).enumerate() {
                         div {
-                            h2 : appearances.iter().map(|(_, _, name)| name).sorted_unstable().dedup().join("/");
+                            h2 {
+                                @if appearances.iter().all(|(_, _, name)| name.is_none()) {
+                                    span(class = "muted") : "unnamed";
+                                } else {
+                                    : appearances.iter().filter_map(|(_, _, name)| *name).sorted_unstable().dedup().join("/");
+                                }
+                            }
                             a(href = uri!(index(Some(FormMolecule(molecule.clone()))))) : molecule.draw(&format!("product{idx}"));
                         }
                     }
@@ -567,6 +608,7 @@ fn rocket() -> _ {
         index,
         molecule_from_state_v1,
         molecule_from_state_v2,
+        molecule_from_state_v3,
         molecules_list,
     ])
     .mount("/static", FileServer::new("assets/static", rocket::fs::Options::None))
