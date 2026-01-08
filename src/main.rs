@@ -575,7 +575,7 @@ fn molecules_list() -> RawHtml<String> {
             }
             body {
                 main {
-                    @for (idx, (molecule, appearances)) in molecules::molecules().into_iter().sorted_unstable_by_key(|(_, appearances)| {
+                    @for (idx, (molecule, appearances)) in molecules::molecules().into_iter().sorted_by_key(|(_, appearances)| {
                         let mut names = appearances.iter().filter_map(|(_, _, name)| *name).collect_vec();
                         names.sort_unstable();
                         names.dedup();
