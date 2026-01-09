@@ -144,6 +144,7 @@ puzzles! {
     "Invisible Ink", InvisibleInk, None,
     "Jewel Box", JewelBox, Some("https://events.critelli.technology/OM2025Weeklies1_JewelBox"),
     "Lambent II/IX", Lambent29, None,
+    "Lambent LXVII", Lambent67, Some("https://events.critelli.technology/0c61ded553925ac6b6d567386c9982b8"),
     "Lamplight Gas", LamplightGas, None,
     "Latch-Hook Fireworks", LatchHookFireworks, Some("https://events.critelli.technology/638f26965e21b260086e1919b264eab5"),
     "Leave No Trace", LeaveNoTrace, Some("https://events.critelli.technology/Week_0_LeaveNoTrace"),
