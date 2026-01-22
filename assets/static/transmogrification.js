@@ -10,6 +10,7 @@ canvas.style.height = `${canvas.height / window.devicePixelRatio}px`;
 
 let mouseX = 0;
 let mouseY = 0;
+let prevState = null;
 let state = {
     'selectedAtom': 'salt',
     'selectedBond': 'n',
@@ -419,7 +420,12 @@ function visitBondForValidation(state, result, stack, visited, p, u, v) {
 
 }
 function validateState(state) {
-    const result = {};
+    const result = {changed: true};
+    if (state === prevState) {
+        result.changed = false;
+        return result;
+    }
+    prevState = state;
     const atomPositions = Object.keys(state).map(function (a) {
         return a.split(',').map(function (n) { return parseInt(n, 10); });
     }).filter(function (a) {
@@ -624,7 +630,9 @@ function stateForEnumerationIndex(index) {
 async function updateDownload() {
     document.getElementById('permalink').onclick = () => {};
     const validationResult = validateState(state);
-    if (validationResult.empty) {
+    if (!validationResult.changed) {
+        return;
+    } else if (validationResult.empty) {
         document.getElementById('clear').style.display = 'none';
         document.getElementById('permalink').style.display = 'none';
         document.getElementById('default').style.display = '';
