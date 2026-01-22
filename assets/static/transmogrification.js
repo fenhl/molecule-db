@@ -421,7 +421,7 @@ function visitBondForValidation(state, result, stack, visited, p, u, v) {
 }
 function validateState(state) {
     const result = {changed: true};
-    if (prevState === null || Object.keys(state).length === Object.keys(prevState).length && Object.keys(state).every(k => state[k] === prevState[k])) {
+    if (prevState !== null && Object.keys(state).length === Object.keys(prevState).length && Object.keys(state).every(k => state[k] === prevState[k])) {
         result.changed = false;
         return result;
     }
