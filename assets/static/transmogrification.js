@@ -425,7 +425,7 @@ function validateState(state) {
         result.changed = false;
         return result;
     }
-    prevState = state;
+    prevState = Object.assign({}, state);
     const atomPositions = Object.keys(state).map(function (a) {
         return a.split(',').map(function (n) { return parseInt(n, 10); });
     }).filter(function (a) {
