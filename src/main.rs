@@ -350,16 +350,14 @@ fn index(m: Option<FormMolecule>) -> Result<RawHtml<String>, IndexError> {
                     @if molecule_too_large {
                         div(class = "emphasized-section") : "molecule does not fit onto canvas";
                     }
-                    div {
-                        h2 : "ENTER MOLECULE TO LOOK UP";
-                        div(id = "canvas-wrapper") {
-                            canvas(id = "current");
-                            div(id = "clear", class = "canvas-button", style = "display: none;") {
-                                a(href = uri!(index(_))) : "Clear";
-                            }
-                            div(id = "permalink", class = "canvas-button", style = "display: none;") {
-                                a : "Copy Permalink";
-                            }
+                    h2 : "ENTER MOLECULE TO LOOK UP";
+                    div(id = "canvas-wrapper") {
+                        canvas(id = "current");
+                        div(id = "clear", class = "canvas-button", style = "display: none;") {
+                            a(href = uri!(index(_))) : "Clear";
+                        }
+                        div(id = "permalink", class = "canvas-button", style = "display: none;") {
+                            a : "Copy Permalink";
                         }
                     }
                     div(id = "result", style = "display: none;");
