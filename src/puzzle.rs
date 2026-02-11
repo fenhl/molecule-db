@@ -174,6 +174,7 @@ puzzles! {
     "Mist of Hallucination", MistOfHallucination, None,
     "Mist of Incapacitation", MistOfIncapacitation, None,
     "Moonlight Catalyst", MoonlightCatalyst, Some("https://events.critelli.technology/OM2025Weeklies11_MoonlightCatalyst"),
+    "My Arms Are Bound", MyArmsAreBound, Some("https://events.critelli.technology/ea51e6dcb8f5b83c0ef6e6b1f965d57a"),
     "Nightmare Fuel", NightmareFuel, Some("https://events.critelli.technology/OM2022Weeklies_NightmareFuel"),
     "Nylon", Nylon, Some("https://events.critelli.technology/OM2025Weeklies9_Nylon"),
     "Ornamental Plating", OrnamentalPlating, Some("https://events.critelli.technology/OM2024Weeklies_OrnamentalPlating"),
