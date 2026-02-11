@@ -14,6 +14,7 @@ use {
         },
         fmt,
         mem,
+        num::NonZero,
     },
     async_proto::Protocol,
     base64::engine::{
@@ -324,15 +325,15 @@ enum IndexError {
     #[error(transparent)] Json(#[from] serde_json::Error),
 }
 
-#[rocket::get("/?<m>")]
-fn index(m: Option<FormMolecule>) -> Result<RawHtml<String>, IndexError> {
-    let (js_state, molecule_too_large) = if let Some(FormMolecule(molecule)) = m {
-        match JsState::try_from(molecule) {
-            Ok(js_state) => (Some(js_state), false),
-            Err(MoleculeTooLarge) => (None, true),
+#[rocket::get("/?<m>&<r>")]
+fn index(m: Option<FormMolecule>, r: Option<NonZero<u8>>) -> Result<RawHtml<String>, IndexError> {
+    let (js_state, r, molecule_too_large) = if let Some(FormMolecule(molecule)) = m {
+        match JsState::new(molecule, r) {
+            Ok((js_state, r)) => (Some(js_state), r, false),
+            Err(MoleculeTooLarge(r)) => (None, r, true),
         }
     } else {
-        (None, false)
+        (None, r.unwrap_or_else(|| NonZero::new(5).unwrap()), false)
     };
     Ok(html! {
         : Doctype;
@@ -354,7 +355,7 @@ fn index(m: Option<FormMolecule>) -> Result<RawHtml<String>, IndexError> {
                     div(id = "canvas-wrapper") {
                         canvas(id = "current");
                         div(id = "clear", class = "canvas-button", style = "display: none;") {
-                            a(href = uri!(index(_))) : "Clear";
+                            a(href = uri!(index(_, if r.get() == 5 { None } else { Some(r) }))) : "Clear";
                         }
                         div(id = "permalink", class = "canvas-button", style = "display: none;") {
                             a : "Copy Permalink";
@@ -368,6 +369,7 @@ fn index(m: Option<FormMolecule>) -> Result<RawHtml<String>, IndexError> {
                 }
                 canvas(id = "next", style = "display: none;");
                 : footer();
+                script : RawHtml(format!("const radius = {r};"));
                 script(src = static_url!("transmogrification.js"));
                 @if let Some(js_state) = js_state {
                     script : RawHtml(format!("
@@ -396,14 +398,13 @@ struct JsState {
 }
 
 #[derive(Debug, thiserror::Error)]
-#[error("molecule does not fit onto canvas")]
-struct MoleculeTooLarge;
+#[error("molecule does not fit onto a canvas of size {0}")]
+struct MoleculeTooLarge(NonZero<u8>);
 
-impl TryFrom<Molecule> for JsState {
-    type Error = MoleculeTooLarge;
-
-    fn try_from(molecule: Molecule) -> Result<Self, Self::Error> {
+impl JsState {
+    fn new(molecule: Molecule, force_radius: Option<NonZero<u8>>) -> Result<(Self, NonZero<u8>), MoleculeTooLarge> {
         let mut molecule = molecule.normalized();
+        let mut min_radius = NonZero::new(5).unwrap();
         if !molecule.atoms.is_empty() {
             // move molecule to try to fit onto canvas
             for rotation in [HexRotation::R0, HexRotation::R60, HexRotation::R120] {
@@ -411,16 +412,18 @@ impl TryFrom<Molecule> for JsState {
                 let (min, max) = molecule.atoms.keys().minmax_by_key(|HexIndex { q, r }| q + r).into_option().expect("molecule has no atoms, checked above");
                 let min_offset = min.q + min.r;
                 let max_offset = max.q + max.r;
-                if max_offset - min_offset > 8 {
-                    return Err(MoleculeTooLarge)
+                let dir_min_radius = NonZero::new((max_offset + 2 - min_offset).div_ceil(2).try_into().map_err(|_| MoleculeTooLarge(NonZero::<u8>::MAX))?).expect("max_offset should always be ≥ min_offset so the division result should always be ≥ 1");
+                if let Some(r) = force_radius && dir_min_radius > r {
+                    return Err(MoleculeTooLarge(r))
                 }
+                min_radius = min_radius.max(dir_min_radius);
                 let center_offset = (max_offset + min_offset) / 2;
                 molecule = molecule.translated(HexIndex { q: -center_offset.div_euclid(2), r: -center_offset.div_ceil(2) });
                 molecule = molecule.rotated(HexIndex::default(), (-i16::from(rotation.turns())).into());
             }
         }
         let Molecule { atoms, bonds } = molecule;
-        Ok(Self {
+        Ok((Self {
             selected_atom: Some(format!("salt")),
             selected_bond: Some(format!("n")),
             rest: atoms.into_iter()
@@ -438,7 +441,7 @@ impl TryFrom<Molecule> for JsState {
                     })
                 )
                 .collect(),
-        })
+        }, min_radius))
     }
 }
 
@@ -595,7 +598,7 @@ fn molecules_list() -> RawHtml<String> {
                                     : appearances.iter().filter_map(|(_, _, name)| *name).sorted_unstable().dedup().join("/");
                                 }
                             }
-                            a(href = uri!(index(Some(FormMolecule(molecule.clone()))))) : molecule.draw(&format!("product{idx}"));
+                            a(href = uri!(index(Some(FormMolecule(molecule.clone())), _))) : molecule.draw(&format!("product{idx}"));
                         }
                     }
                 }

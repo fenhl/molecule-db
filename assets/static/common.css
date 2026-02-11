@@ -24,7 +24,6 @@ a {
 }
 #canvas-wrapper {
     position: relative;
-    width: 1001px;
     margin: 0 auto;
 }
 canvas {

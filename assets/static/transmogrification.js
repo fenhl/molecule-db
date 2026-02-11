@@ -1,8 +1,8 @@
 const canvas = document.getElementById('current');
 const nextCanvas = document.getElementById('next');
 const drawerWidth = 264;
-const width = 1001;
-const height = 652;
+const width = 160 * radius + 201;
+const height = Math.max(652, 140 * radius - 48);
 nextCanvas.width = canvas.width = width * window.devicePixelRatio;
 nextCanvas.height = canvas.height = height * window.devicePixelRatio;
 canvas.style.width = `${canvas.width / window.devicePixelRatio}px`;
@@ -61,11 +61,11 @@ function bondEncoding(bond) {
 }
 
 function visit(atom, bond) {
-    for (let i = -4; i <= 4; ++i) {
-        for (let j = -4; j <= 4; ++j) {
+    for (let i = -(radius - 1); i <= radius - 1; ++i) {
+        for (let j = -(radius - 1); j <= radius - 1; ++j) {
             const x = drawerWidth + (width - drawerWidth) / 2 + 82 * (i + 0.5 * j);
             const y = height / 2 - 71 * j;
-            if (i + j < -4 || i + j > 4)
+            if (i + j <= -radius || i + j >= radius)
                 continue;
             if (atom)
                 atom(i, j, x, y);

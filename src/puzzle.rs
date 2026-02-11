@@ -227,6 +227,7 @@ puzzles! {
     "Self-Pressurizing Gas", SelfPressurizingGas, Some("https://events.critelli.technology/OM2023_W1_SelfPressurizingGas"),
     "Septstabilized Salt", SeptstabilizedSalt, Some("https://events.critelli.technology/9c14e48d17cebae4165828037b56cc7c"),
     "Servin's Wheel", ServinsWheel, Some("https://events.critelli.technology/OM2022Weeklies_ServinsWheel"),
+    "Sigmar's Garden", SigmarsGarden, Some("https://events.critelli.technology/af2e9ada2b4a888463d1aef200c58eb9"),
     "Silver Apple of Discord", SilverAppleOfDiscord, Some("https://events.critelli.technology/3e07b2ebbabd5ea7e9b87f8cd35d679f"),
     "Silver Caustic", SilverCaustic, None,
     "Silver Paint", SilverPaint, None,
