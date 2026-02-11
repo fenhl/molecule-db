@@ -162,6 +162,6 @@ impl<'a> TryFrom<&'a FormMolecule> for ProtocolMolecule {
     }
 }
 
-#[derive(Protocol)]
+#[derive(Clone, Protocol)]
 #[async_proto(via = ProtocolMolecule)]
 pub(crate) struct FormMolecule(pub(crate) Molecule);

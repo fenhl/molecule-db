@@ -638,6 +638,10 @@ async function updateDownload() {
         document.getElementById('default').style.display = '';
         document.getElementById('error').textContent = '';
         document.getElementById('result').style.display = 'none';
+        const radiusDown = document.getElementById('radius-down');
+        radiusDown.setAttribute('href', `/?b=${radius - 1}`);
+        radiusDown.style.display = (radius > 1) ? '' : 'none';
+        document.getElementById('radius-up').setAttribute('href', `/?b=${radius + 1}`);
         return;
     } else if (validationResult.error) {
         document.getElementById('clear').style.display = '';
@@ -659,6 +663,10 @@ async function updateDownload() {
             document.getElementById('permalink').onclick = async function (e) {
                 await navigator.clipboard.writeText(`https://mol.fenhl.net/?m=${data.permalink}`);
             };
+            const radiusDown = document.getElementById('radius-down');
+            radiusDown.setAttribute('href', `/?m=${data.permalink}&b=${radius - 1}`);
+            radiusDown.style.display = (radius > 1 && data.minRadius < radius) ? '' : 'none';
+            document.getElementById('radius-up').setAttribute('href', `/?m=${data.permalink}&b=${radius + 1}`);
             if (data.appearances.length === 0) {
                 const message = document.createElement('h1');
                 message.setAttribute('class', 'muted');

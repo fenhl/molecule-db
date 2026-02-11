@@ -78,6 +78,7 @@ enum InOut {
 }
 
 trait MoleculeExt {
+    fn min_radius(&self) -> Result<NonZero<u8>, MoleculeTooLarge>;
     fn position_normalized(&self) -> Self;
     fn normalized(&self) -> Self;
     fn mirrored(&self) -> Self;
@@ -85,6 +86,21 @@ trait MoleculeExt {
 }
 
 impl MoleculeExt for Molecule {
+    fn min_radius(&self) -> Result<NonZero<u8>, MoleculeTooLarge> {
+        let mut min_radius = NonZero::<u8>::MIN;
+        if !self.atoms.is_empty() {
+            for rotation in [HexRotation::R0, HexRotation::R60, HexRotation::R120] {
+                let molecule = self.rotated(HexIndex::default(), rotation);
+                let (min, max) = molecule.atoms.keys().minmax_by_key(|HexIndex { q, r }| q + r).into_option().expect("molecule has no atoms, checked above");
+                let min_offset = min.q + min.r;
+                let max_offset = max.q + max.r;
+                let dir_min_radius = NonZero::new((max_offset + 2 - min_offset).div_ceil(2).try_into().map_err(|_| MoleculeTooLarge { radius: NonZero::<u8>::MAX, min_radius: NonZero::<u8>::MAX })?).expect("max_offset should always be ≥ min_offset so the division result should always be ≥ 1");
+                min_radius = min_radius.max(dir_min_radius);
+            }
+        }
+        Ok(min_radius)
+    }
+
     fn position_normalized(&self) -> Self {
         let offset = HexIndex {
             q: self.atoms.keys().map(|&HexIndex { q, .. }| q).min().unwrap_or_default(),
@@ -327,13 +343,13 @@ enum IndexError {
 
 #[rocket::get("/?<m>&<b>")]
 fn index(m: Option<FormMolecule>, b: Option<NonZero<u8>>) -> Result<RawHtml<String>, IndexError> {
-    let (js_state, b, molecule_too_large) = if let Some(FormMolecule(molecule)) = m {
+    let (js_state, min_radius, radius, molecule_too_large) = if let Some(FormMolecule(molecule)) = m.clone() {
         match JsState::new(molecule, b) {
-            Ok((js_state, b)) => (Some(js_state), b, false),
-            Err(MoleculeTooLarge(b)) => (None, b, true),
+            Ok((js_state, min_radius)) => (Some(js_state), min_radius, b.unwrap_or_else(|| min_radius.max(NonZero::new(5).unwrap())), false),
+            Err(MoleculeTooLarge { radius, min_radius }) => (None, min_radius, radius, true),
         }
     } else {
-        (None, b.unwrap_or_else(|| NonZero::new(5).unwrap()), false)
+        (None, NonZero::<u8>::MIN, b.unwrap_or_else(|| NonZero::new(5).unwrap()), false)
     };
     Ok(html! {
         : Doctype;
@@ -355,7 +371,14 @@ fn index(m: Option<FormMolecule>, b: Option<NonZero<u8>>) -> Result<RawHtml<Stri
                     div(id = "canvas-wrapper") {
                         canvas(id = "current");
                         div(id = "clear", class = "canvas-button", style = "display: none;") {
-                            a(href = uri!(index(_, if b.get() == 5 { None } else { Some(b) }))) : "Clear";
+                            a(href = uri!(index(_, if radius.get() == 5 { None } else { Some(radius) }))) : "Clear";
+                        }
+                        div(id = "radius", class = "canvas-button") {
+                            a(id = "radius-down", href = uri!(index(m.clone(), radius.get().checked_sub(1).and_then(NonZero::new).filter(|new_radius| *new_radius != min_radius.max(NonZero::new(5).unwrap())))), style? = radius.get().checked_sub(1).and_then(NonZero::new).is_none_or(|new_radius| new_radius < min_radius).then_some("display: none;")) : "−";
+                            : " B=";
+                            : radius;
+                            : " ";
+                            a(id = "radius-up", href = uri!(index(m, radius.checked_add(1).filter(|new_radius| *new_radius != min_radius.max(NonZero::new(5).unwrap())))), style? = radius.checked_add(1).is_none().then_some("display: none;")) : "+";
                         }
                         div(id = "permalink", class = "canvas-button", style = "display: none;") {
                             a : "Copy Permalink";
@@ -369,7 +392,7 @@ fn index(m: Option<FormMolecule>, b: Option<NonZero<u8>>) -> Result<RawHtml<Stri
                 }
                 canvas(id = "next", style = "display: none;");
                 : footer();
-                script : RawHtml(format!("const radius = {b};"));
+                script : RawHtml(format!("const radius = {radius};"));
                 script(src = static_url!("transmogrification.js"));
                 @if let Some(js_state) = js_state {
                     script : RawHtml(format!("
@@ -398,13 +421,16 @@ struct JsState {
 }
 
 #[derive(Debug, thiserror::Error)]
-#[error("molecule does not fit onto a canvas of size {0}")]
-struct MoleculeTooLarge(NonZero<u8>);
+#[error("molecule does not fit onto a canvas of size {radius}; minimum size is {min_radius}")]
+struct MoleculeTooLarge {
+    radius: NonZero<u8>,
+    min_radius: NonZero<u8>,
+}
 
 impl JsState {
     fn new(molecule: Molecule, force_radius: Option<NonZero<u8>>) -> Result<(Self, NonZero<u8>), MoleculeTooLarge> {
         let mut molecule = molecule.normalized();
-        let mut min_radius = NonZero::new(5).unwrap();
+        let mut min_radius = NonZero::<u8>::MIN;
         if !molecule.atoms.is_empty() {
             // move molecule to try to fit onto canvas
             for rotation in [HexRotation::R0, HexRotation::R60, HexRotation::R120] {
@@ -412,15 +438,15 @@ impl JsState {
                 let (min, max) = molecule.atoms.keys().minmax_by_key(|HexIndex { q, r }| q + r).into_option().expect("molecule has no atoms, checked above");
                 let min_offset = min.q + min.r;
                 let max_offset = max.q + max.r;
-                let dir_min_radius = NonZero::new((max_offset + 2 - min_offset).div_ceil(2).try_into().map_err(|_| MoleculeTooLarge(NonZero::<u8>::MAX))?).expect("max_offset should always be ≥ min_offset so the division result should always be ≥ 1");
-                if let Some(r) = force_radius && dir_min_radius > r {
-                    return Err(MoleculeTooLarge(r))
-                }
+                let dir_min_radius = NonZero::new((max_offset + 2 - min_offset).div_ceil(2).try_into().map_err(|_| MoleculeTooLarge { radius: NonZero::<u8>::MAX, min_radius: NonZero::<u8>::MAX })?).expect("max_offset should always be ≥ min_offset so the division result should always be ≥ 1");
                 min_radius = min_radius.max(dir_min_radius);
                 let center_offset = (max_offset + min_offset) / 2;
                 molecule = molecule.translated(HexIndex { q: -center_offset.div_euclid(2), r: -center_offset.div_ceil(2) });
                 molecule = molecule.rotated(HexIndex::default(), (-i16::from(rotation.turns())).into());
             }
+        }
+        if let Some(radius) = force_radius && min_radius > radius {
+            return Err(MoleculeTooLarge { radius, min_radius })
         }
         let Molecule { atoms, bonds } = molecule;
         Ok((Self {
@@ -546,13 +572,23 @@ fn molecule_from_state_v2(state: Json<JsState>) -> Result<Json<MoleculeResponseV
     Ok(Json(response))
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MoleculeResponseV3 {
+    appearances: Vec<Appearance>,
+    min_radius: NonZero<u8>,
+    permalink: String,
+    rust_code: String,
+}
+
 #[rocket::post("/api/v3/molecule-from-state", format = "json", data = "<state>")]
-fn molecule_from_state_v3(state: Json<JsState>) -> Result<Json<MoleculeResponseV2>, Status> {
+fn molecule_from_state_v3(state: Json<JsState>) -> Result<Json<MoleculeResponseV3>, Status> {
     let molecule = Molecule::try_from(state.0).map_err(|()| Status::BadRequest)?;
     let mut permalink = Vec::default();
     FormMolecule(molecule.clone()).write_sync(&mut permalink).map_err(|_| Status::BadRequest)?;
-    let mut response = MoleculeResponseV2 {
+    let mut response = MoleculeResponseV3 {
         appearances: Vec::default(),
+        min_radius: molecule.min_radius().map_err(|_| Status::BadRequest)?,
         permalink: BASE64.encode(permalink),
         rust_code: format!("{:?}", Unparse(&molecule)),
     };
