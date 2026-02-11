@@ -325,15 +325,15 @@ enum IndexError {
     #[error(transparent)] Json(#[from] serde_json::Error),
 }
 
-#[rocket::get("/?<m>&<r>")]
-fn index(m: Option<FormMolecule>, r: Option<NonZero<u8>>) -> Result<RawHtml<String>, IndexError> {
-    let (js_state, r, molecule_too_large) = if let Some(FormMolecule(molecule)) = m {
-        match JsState::new(molecule, r) {
-            Ok((js_state, r)) => (Some(js_state), r, false),
-            Err(MoleculeTooLarge(r)) => (None, r, true),
+#[rocket::get("/?<m>&<b>")]
+fn index(m: Option<FormMolecule>, b: Option<NonZero<u8>>) -> Result<RawHtml<String>, IndexError> {
+    let (js_state, b, molecule_too_large) = if let Some(FormMolecule(molecule)) = m {
+        match JsState::new(molecule, b) {
+            Ok((js_state, b)) => (Some(js_state), b, false),
+            Err(MoleculeTooLarge(b)) => (None, b, true),
         }
     } else {
-        (None, r.unwrap_or_else(|| NonZero::new(5).unwrap()), false)
+        (None, b.unwrap_or_else(|| NonZero::new(5).unwrap()), false)
     };
     Ok(html! {
         : Doctype;
@@ -355,7 +355,7 @@ fn index(m: Option<FormMolecule>, r: Option<NonZero<u8>>) -> Result<RawHtml<Stri
                     div(id = "canvas-wrapper") {
                         canvas(id = "current");
                         div(id = "clear", class = "canvas-button", style = "display: none;") {
-                            a(href = uri!(index(_, if r.get() == 5 { None } else { Some(r) }))) : "Clear";
+                            a(href = uri!(index(_, if b.get() == 5 { None } else { Some(b) }))) : "Clear";
                         }
                         div(id = "permalink", class = "canvas-button", style = "display: none;") {
                             a : "Copy Permalink";
@@ -369,7 +369,7 @@ fn index(m: Option<FormMolecule>, r: Option<NonZero<u8>>) -> Result<RawHtml<Stri
                 }
                 canvas(id = "next", style = "display: none;");
                 : footer();
-                script : RawHtml(format!("const radius = {r};"));
+                script : RawHtml(format!("const radius = {b};"));
                 script(src = static_url!("transmogrification.js"));
                 @if let Some(js_state) = js_state {
                     script : RawHtml(format!("
