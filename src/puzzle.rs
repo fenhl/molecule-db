@@ -234,6 +234,7 @@ puzzles! {
     "Silver Paint", SilverPaint, None,
     "Simulacrum", Simulacrum, Some("https://events.critelli.technology/ff3f211965e5ba83ac8a080335ddd04e"),
     "Smog Neutralization", SmogNeutralization, Some("https://events.critelli.technology/OM2025Weeklies5_SmogNeutralization"),
+    "Snow Amputation", SnowAmputation, Some("https://events.critelli.technology/0d8384f8b042a93f2cbb1af82c339b9c"),
     "Soothing Salve", SoothingSalve, Some("https://events.critelli.technology/Week_2_SoothingSalve"),
     "Sophick Mercury", SophickMercury, Some("https://events.critelli.technology/OM2024Weeklies_SophickMercury"),
     "Special Amaro", SpecialAmaro, None,
