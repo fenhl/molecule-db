@@ -196,6 +196,7 @@ puzzles! {
     "Probe Module", ProbeModule, Some("https://events.critelli.technology/OM2023_W5_ProbeModule"),
     "Proof of Completeness", ProofOfCompleteness, None,
     "Purified Gold", PurifiedGold, None,
+    "Quiet Hours", QuietHours, Some("https://events.critelli.technology/ff6feb9ee69a0450a117eb2a7c7de784"),
     "Quintessential Aerogel", QuintessentialAerogel, Some("https://events.critelli.technology/OM2022Weeklies_QuintAerogel"),
     "Quintessential Catalyst", QuintessentialCatalyst, Some("https://discord.com/channels/278707932089155584/296373951800541186/877363315687436349"),
     "Quintessential Explosive", QuintessentialExplosive, Some("https://events.critelli.technology/OM2023Weeklies_QuintExplosive"),

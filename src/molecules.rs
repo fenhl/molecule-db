@@ -488,6 +488,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, InOut, Option<&'static 
             (Puzzle::SaltPackagingFactory, InOut::Both, Some("Elemental Salt")),
             (Puzzle::TheAmazingEverythingMachine, InOut::Reagent, Some("Elemental Salt")),
             (Puzzle::MemoryLane, InOut::Reagent, Some("Elemental Salt")),
+            (Puzzle::QuietHours, InOut::Reagent, Some("Elemental Salt")),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Silver, HexIndex { q: 1, r: 0 } => Atom::Silver, HexIndex { q: 2, r: 0 } => Atom::Silver, HexIndex { q: 3, r: 0 } => Atom::Repeat], bonds: collect![Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 1, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 0 }, end: HexIndex { q: 2, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 0 }, end: HexIndex { q: 3, r: 0 }, ty: BondType::Normal }] }, vec![
             (Puzzle::ElectrumSeparation, InOut::Product, Some("Elemental Silver (1)")),
@@ -511,6 +512,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, InOut, Option<&'static 
             (Puzzle::SutureThread, InOut::Reagent, Some("Elemental Vitae")),
             (Puzzle::CancerMedicine, InOut::Product, None),
             (Puzzle::PousseCafe, InOut::Reagent, None),
+            (Puzzle::QuietHours, InOut::Product, Some("Elemental Vitae")),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Water], bonds: collect![] }, vec![
             (Puzzle::LessonTransmutation, InOut::Reagent, Some("Elemental Water")),
