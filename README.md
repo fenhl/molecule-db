@@ -2,7 +2,7 @@ This is a database of all molecules in official [Opus Magnum](https://www.zachtr
 
 With the exception of the molecule [Amalgamated Gold Ring](https://mol.fenhl.net/?m=BiAFAQUSDQIFEA0hBQYCABIoASggCAEIEAA=), molecules from the 2019, 2020, and 2021 tournaments, the 2021 weeklies, [Alchademy](https://events.critelli.technology/collection/444), Speed Solve seasons [2](https://events.critelli.technology/collection/speedsolve2) and [3](https://events.critelli.technology/collection/speedsolve3), and the puzzle [End Game](https://events.critelli.technology/OM2023_W0_EndGame) from the 2023 tournament are unnamed. If a host of one of these events or an author of one of these puzzles would like to add molecule names for their puzzles to this database, please contact me (`@fenhl` on Discord, or [open an issue](https://github.com/fenhl/molecule-db/issues/new)).
 
-The database is up to date as of _De Re Metallica_ chapter 2, published 2026-03-17.
+The database is up to date as of _De Re Metallica_ chapter 3, published 2026-03-17.
 
 # Usage
 

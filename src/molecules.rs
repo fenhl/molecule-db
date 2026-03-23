@@ -264,6 +264,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, InOut, Option<&'static 
             (Puzzle::ElementalCopper, InOut::Product, Some("Elemental Copper")),
             (Puzzle::MixedUseLubricant, InOut::Product, Some("Elemental Copper")),
             (Puzzle::MetallicTincture, InOut::Reagent, Some("Elemental Copper")),
+            (Puzzle::ExMateria, InOut::Product, Some("Elemental Copper")),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Earth], bonds: collect![] }, vec![
             (Puzzle::FacePowder, InOut::Reagent, Some("Elemental Earth")),
@@ -347,6 +348,8 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, InOut, Option<&'static 
             (Puzzle::ElementalCopper, InOut::Reagent, Some("Elemental Gold (1)")),
             (Puzzle::MetalDivision, InOut::Reagent, Some("Elemental Gold (1)")),
             (Puzzle::FireworksPowder, InOut::Reagent, Some("Elemental Gold (1)")),
+            (Puzzle::InvariantMetal, InOut::Reagent, Some("Elemental Gold (1)")),
+            (Puzzle::ExMateria, InOut::Reagent, Some("Elemental Gold (1)")),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Gold, HexIndex { q: 1, r: 0 } => Atom::Gold, HexIndex { q: 2, r: 0 } => Atom::Gold, HexIndex { q: 3, r: 0 } => Atom::Repeat], bonds: collect![Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 1, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 0 }, end: HexIndex { q: 2, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 0 }, end: HexIndex { q: 3, r: 0 }, ty: BondType::Normal }] }, vec![
             (Puzzle::ElectrumSeparation, InOut::Product, Some("Elemental Gold (2)")),
@@ -370,6 +373,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, InOut, Option<&'static 
             (Puzzle::SolderWire, InOut::Reagent, Some("Elemental Iron")),
             (Puzzle::ReactiveLead, InOut::Reagent, Some("Elemental Iron")),
             (Puzzle::ArmorPolish, InOut::Reagent, Some("Elemental Iron")),
+            (Puzzle::ExMateria, InOut::Product, Some("Elemental Iron")),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Lead], bonds: collect![] }, vec![
             (Puzzle::RefinedGold, InOut::Reagent, Some("Elemental Lead")),
@@ -407,6 +411,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, InOut, Option<&'static 
             (Puzzle::RavarisRoad, InOut::Both, Some("Elemental Lead")),
             (Puzzle::SaveriosTransformer, InOut::Reagent, Some("Elemental Lead")),
             (Puzzle::MetalDivision, InOut::Product, Some("Elemental Lead")),
+            (Puzzle::ExMateria, InOut::Product, Some("Elemental Lead")),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Mors], bonds: collect![] }, vec![
             (Puzzle::AssassinsFilament, InOut::Reagent, Some("Elemental Mors")),
@@ -450,6 +455,9 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, InOut, Option<&'static 
             (Puzzle::RavarisRoad, InOut::Both, Some("Elemental Quicksilver")),
             (Puzzle::MoonlightCatalyst, InOut::Reagent, Some("Elemental Quicksilver")),
             (Puzzle::SaveriosTransformer, InOut::Product, Some("Elemental Quicksilver")),
+            (Puzzle::ViaQuicksilver, InOut::Reagent, Some("Elemental Quicksilver")),
+            (Puzzle::ExperimentalCatalyst, InOut::Reagent, Some("Elemental Quicksilver")),
+            (Puzzle::PatternMetal, InOut::Reagent, Some("Elemental Quicksilver")),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Quintessence], bonds: collect![] }, vec![
             (Puzzle::ProofOfCompleteness, InOut::Reagent, Some("Elemental Quintessence")),
@@ -509,6 +517,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, InOut, Option<&'static 
             (Puzzle::MemoryLane, InOut::Reagent, Some("Elemental Salt")),
             (Puzzle::QuietHours, InOut::Reagent, Some("Elemental Salt")),
             (Puzzle::GalenaSeparation, InOut::Product, Some("Elemental Salt")),
+            (Puzzle::ExperimentalCatalyst, InOut::Reagent, Some("Elemental Salt")),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Silver, HexIndex { q: 1, r: 0 } => Atom::Silver, HexIndex { q: 2, r: 0 } => Atom::Silver, HexIndex { q: 3, r: 0 } => Atom::Repeat], bonds: collect![Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 1, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 0 }, end: HexIndex { q: 2, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 0 }, end: HexIndex { q: 3, r: 0 }, ty: BondType::Normal }] }, vec![
             (Puzzle::ElectrumSeparation, InOut::Product, Some("Elemental Silver (1)")),
@@ -517,6 +526,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, InOut, Option<&'static 
             (Puzzle::EvilOre, InOut::Product, None),
             (Puzzle::SophickMercury, InOut::Reagent, Some("Elemental Silver (2)")),
             (Puzzle::RavarisRoad, InOut::Product, Some("Elemental Silver (2)")),
+            (Puzzle::ExMateria, InOut::Product, Some("Elemental Silver (2)")),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Tin], bonds: collect![] }, vec![
             (Puzzle::FragrantPowders, InOut::Reagent, Some("Elemental Tin")),
@@ -528,6 +538,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, InOut, Option<&'static 
             (Puzzle::ElementalCopper, InOut::Reagent, Some("Elemental Tin")),
             (Puzzle::GalenaSeparation, InOut::Product, Some("Elemental Tin")),
             (Puzzle::MetalDivision, InOut::Product, Some("Elemental Tin")),
+            (Puzzle::ExMateria, InOut::Product, Some("Elemental Tin")),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Vitae], bonds: collect![] }, vec![
             (Puzzle::HealthTonic, InOut::Reagent, Some("Elemental Vitae")),
@@ -593,6 +604,9 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, InOut, Option<&'static 
         (Molecule { atoms: collect![HexIndex { q: 0, r: 1 } => Atom::Quicksilver, HexIndex { q: 1, r: 1 } => Atom::Lead, HexIndex { q: 1, r: 2 } => Atom::Quicksilver, HexIndex { q: 2, r: 0 } => Atom::Quicksilver], bonds: collect![Bond { start: HexIndex { q: 0, r: 1 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Triplex { red: true, black: true, yellow: true } }, Bond { start: HexIndex { q: 1, r: 1 }, end: HexIndex { q: 1, r: 2 }, ty: BondType::Triplex { red: true, black: true, yellow: true } }, Bond { start: HexIndex { q: 1, r: 1 }, end: HexIndex { q: 2, r: 0 }, ty: BondType::Triplex { red: true, black: true, yellow: true } }] }, vec![
             (Puzzle::BicrystalTransceiver, InOut::Reagent, Some("Exotic Metalloid")),
             (Puzzle::WarpFuel, InOut::Reagent, Some("Exotic Metalloid")),
+        ]),
+        (Molecule { atoms: collect![HexIndex { q: 0, r: 3 } => Atom::Salt, HexIndex { q: 1, r: 1 } => Atom::Fire, HexIndex { q: 1, r: 2 } => Atom::Lead, HexIndex { q: 1, r: 3 } => Atom::Gold, HexIndex { q: 1, r: 4 } => Atom::Air, HexIndex { q: 2, r: 1 } => Atom::Tin, HexIndex { q: 2, r: 2 } => Atom::Salt, HexIndex { q: 2, r: 3 } => Atom::Silver, HexIndex { q: 3, r: 0 } => Atom::Earth, HexIndex { q: 3, r: 1 } => Atom::Iron, HexIndex { q: 3, r: 2 } => Atom::Copper, HexIndex { q: 3, r: 3 } => Atom::Water, HexIndex { q: 4, r: 1 } => Atom::Salt], bonds: collect![Bond { start: HexIndex { q: 0, r: 3 }, end: HexIndex { q: 1, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 3 }, end: HexIndex { q: 1, r: 3 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 1 }, end: HexIndex { q: 1, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 1 }, end: HexIndex { q: 2, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 3 }, end: HexIndex { q: 1, r: 4 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 3 }, end: HexIndex { q: 2, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 4 }, end: HexIndex { q: 2, r: 3 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 1 }, end: HexIndex { q: 2, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 1 }, end: HexIndex { q: 3, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 2 }, end: HexIndex { q: 3, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 3 }, end: HexIndex { q: 3, r: 3 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 3, r: 0 }, end: HexIndex { q: 3, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 3, r: 1 }, end: HexIndex { q: 4, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 3, r: 2 }, end: HexIndex { q: 3, r: 3 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 3, r: 2 }, end: HexIndex { q: 4, r: 1 }, ty: BondType::Normal }] }, vec![
+            (Puzzle::ExperimentalCatalyst, InOut::Product, Some("Experimental Catalyst")),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 2 } => Atom::Earth, HexIndex { q: 0, r: 3 } => Atom::Vitae, HexIndex { q: 1, r: 2 } => Atom::Earth, HexIndex { q: 1, r: 3 } => Atom::Water, HexIndex { q: 2, r: 1 } => Atom::Water, HexIndex { q: 2, r: 2 } => Atom::Earth, HexIndex { q: 2, r: 3 } => Atom::Earth, HexIndex { q: 2, r: 4 } => Atom::Earth, HexIndex { q: 3, r: 0 } => Atom::Vitae, HexIndex { q: 3, r: 1 } => Atom::Earth, HexIndex { q: 3, r: 2 } => Atom::Water, HexIndex { q: 3, r: 3 } => Atom::Vitae, HexIndex { q: 4, r: 0 } => Atom::Earth], bonds: collect![Bond { start: HexIndex { q: 0, r: 2 }, end: HexIndex { q: 1, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 3 }, end: HexIndex { q: 1, r: 3 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 2 }, end: HexIndex { q: 2, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 3 }, end: HexIndex { q: 2, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 3 }, end: HexIndex { q: 2, r: 3 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 1 }, end: HexIndex { q: 2, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 1 }, end: HexIndex { q: 3, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 2 }, end: HexIndex { q: 3, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 3 }, end: HexIndex { q: 2, r: 4 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 3, r: 1 }, end: HexIndex { q: 3, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 3, r: 1 }, end: HexIndex { q: 4, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 3, r: 2 }, end: HexIndex { q: 3, r: 3 }, ty: BondType::Normal }] }, vec![
             (Puzzle::ExplorersSalve, InOut::Product, Some("Explorer's Salve")),
@@ -736,6 +750,9 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, InOut, Option<&'static 
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 1 } => Atom::Water, HexIndex { q: 0, r: 2 } => Atom::Water, HexIndex { q: 1, r: 0 } => Atom::Water, HexIndex { q: 1, r: 1 } => Atom::Quicksilver, HexIndex { q: 1, r: 2 } => Atom::Silver, HexIndex { q: 2, r: 0 } => Atom::Silver, HexIndex { q: 2, r: 1 } => Atom::Silver], bonds: collect![Bond { start: HexIndex { q: 0, r: 1 }, end: HexIndex { q: 0, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 1 }, end: HexIndex { q: 1, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 1 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 2 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 2 }, end: HexIndex { q: 1, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 0 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 0 }, end: HexIndex { q: 2, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 2 }, end: HexIndex { q: 2, r: 1 }, ty: BondType::Triplex { red: true, black: true, yellow: true } }, Bond { start: HexIndex { q: 2, r: 0 }, end: HexIndex { q: 2, r: 1 }, ty: BondType::Triplex { red: true, black: true, yellow: true } }] }, vec![
             (Puzzle::InstantMirrorCoat, InOut::Product, Some("Instant Mirror Coat™")),
+        ]),
+        (Molecule { atoms: collect![HexIndex { q: 0, r: 1 } => Atom::Copper, HexIndex { q: 0, r: 2 } => Atom::Iron, HexIndex { q: 1, r: 0 } => Atom::Iron, HexIndex { q: 1, r: 1 } => Atom::Iron, HexIndex { q: 1, r: 2 } => Atom::Copper, HexIndex { q: 2, r: 0 } => Atom::Copper, HexIndex { q: 2, r: 1 } => Atom::Iron], bonds: collect![Bond { start: HexIndex { q: 0, r: 1 }, end: HexIndex { q: 0, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 1 }, end: HexIndex { q: 1, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 2 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 2 }, end: HexIndex { q: 1, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 0 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 0 }, end: HexIndex { q: 2, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 1 }, end: HexIndex { q: 2, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 2 }, end: HexIndex { q: 2, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 0 }, end: HexIndex { q: 2, r: 1 }, ty: BondType::Normal }] }, vec![
+            (Puzzle::InvariantMetal, InOut::Product, Some("Invariant Metal")),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Salt, HexIndex { q: 0, r: 1 } => Atom::Water, HexIndex { q: 1, r: 1 } => Atom::Vitae, HexIndex { q: 2, r: 1 } => Atom::Water], bonds: collect![Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 0, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 1 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 1 }, end: HexIndex { q: 2, r: 1 }, ty: BondType::Normal }] }, vec![
             (Puzzle::InvisibleInk, InOut::Product, Some("Invisible Ink, Part A")),
@@ -946,6 +963,9 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, InOut, Option<&'static 
             (Puzzle::LocalAnaesthetic, InOut::Reagent, Some("Nerve Block")),
             (Puzzle::SigmarsGarden, InOut::Product, Some("Nerve Block")),
         ]),
+        (Molecule { atoms: collect![HexIndex { q: 0, r: 2 } => Atom::Quicksilver, HexIndex { q: 0, r: 3 } => Atom::Silver, HexIndex { q: 0, r: 4 } => Atom::Tin, HexIndex { q: 1, r: 1 } => Atom::Copper, HexIndex { q: 1, r: 2 } => Atom::Tin, HexIndex { q: 1, r: 3 } => Atom::Quicksilver, HexIndex { q: 1, r: 4 } => Atom::Copper, HexIndex { q: 2, r: 0 } => Atom::Tin, HexIndex { q: 2, r: 1 } => Atom::Quicksilver, HexIndex { q: 2, r: 2 } => Atom::Gold, HexIndex { q: 2, r: 3 } => Atom::Tin, HexIndex { q: 2, r: 4 } => Atom::Quicksilver, HexIndex { q: 3, r: 0 } => Atom::Silver, HexIndex { q: 3, r: 1 } => Atom::Tin, HexIndex { q: 3, r: 2 } => Atom::Quicksilver, HexIndex { q: 3, r: 3 } => Atom::Silver, HexIndex { q: 4, r: 0 } => Atom::Quicksilver, HexIndex { q: 4, r: 1 } => Atom::Copper, HexIndex { q: 4, r: 2 } => Atom::Tin], bonds: collect![Bond { start: HexIndex { q: 0, r: 2 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 2 }, end: HexIndex { q: 1, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 3 }, end: HexIndex { q: 0, r: 4 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 3 }, end: HexIndex { q: 1, r: 3 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 4 }, end: HexIndex { q: 1, r: 3 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 1 }, end: HexIndex { q: 1, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 2 }, end: HexIndex { q: 2, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 3 }, end: HexIndex { q: 2, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 4 }, end: HexIndex { q: 2, r: 3 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 4 }, end: HexIndex { q: 2, r: 4 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 0 }, end: HexIndex { q: 2, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 0 }, end: HexIndex { q: 3, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 1 }, end: HexIndex { q: 2, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 1 }, end: HexIndex { q: 3, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 2 }, end: HexIndex { q: 2, r: 3 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 2 }, end: HexIndex { q: 3, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 2 }, end: HexIndex { q: 3, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 3 }, end: HexIndex { q: 2, r: 4 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 3, r: 1 }, end: HexIndex { q: 4, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 3, r: 1 }, end: HexIndex { q: 4, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 3, r: 2 }, end: HexIndex { q: 3, r: 3 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 3, r: 2 }, end: HexIndex { q: 4, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 3, r: 3 }, end: HexIndex { q: 4, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 4, r: 0 }, end: HexIndex { q: 4, r: 1 }, ty: BondType::Normal }] }, vec![
+            (Puzzle::PatternMetal, InOut::Product, Some("Pattern Metal")),
+        ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Salt, HexIndex { q: 0, r: 1 } => Atom::Air, HexIndex { q: 1, r: 1 } => Atom::Salt], bonds: collect![Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 0, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 1 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }] }, vec![
             (Puzzle::CrystallizedAir, InOut::Reagent, Some("Purified Air")),
         ]),
@@ -976,6 +996,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, InOut, Option<&'static 
             (Puzzle::RavarisRage, InOut::Product, None),
             (Puzzle::LookAndSay, InOut::Reagent, Some("Ravari's Wheel")),
             (Puzzle::MemoryLane, InOut::Reagent, Some("Ravari's Wheel")),
+            (Puzzle::ViaQuicksilver, InOut::Product, Some("Ravari's Wheel")),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Silver, HexIndex { q: 0, r: 1 } => Atom::Salt, HexIndex { q: 0, r: 2 } => Atom::Silver, HexIndex { q: 1, r: 0 } => Atom::Salt, HexIndex { q: 1, r: 1 } => Atom::Salt, HexIndex { q: 2, r: 0 } => Atom::Silver], bonds: collect![Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 0, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 1, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 1 }, end: HexIndex { q: 0, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 2 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 0 }, end: HexIndex { q: 2, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 1 }, end: HexIndex { q: 2, r: 0 }, ty: BondType::Normal }] }, vec![
             (Puzzle::MoonlightCatalyst, InOut::Reagent, Some("Raw Silver")),
