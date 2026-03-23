@@ -75,6 +75,7 @@ puzzles! {
     "Children's toys", ChildrensToys, Some("https://events.critelli.technology/f308e34f12f681c32580ee82d0c96c72"),
     "Chromatic Aberration", ChromaticAberration, Some("https://events.critelli.technology/26a4f980a1b475197735802f9cb75836"),
     "Climbing Rope Fiber", ClimbingRopeFiber, None,
+    "Clusterfgold", Clusterfgold, Some("https://events.critelli.technology/7ce689ab3de9678bfb297994d79f17e1"),
     "Colvan Blue", ColvanBlue, Some("https://discord.com/channels/278707932089155584/296373951800541186/851990719530532864"),
     "Compound Anaesthetic", CompoundAnaesthetic, None,
     "Conductive Enamel", ConductiveEnamel, None,
