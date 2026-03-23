@@ -363,6 +363,10 @@ fn index(m: Option<FormMolecule>, b: Option<NonZero<u8>>) -> Result<RawHtml<Stri
                 script(src = static_url!("common.js"));
             }
             body {
+                nav {
+                    a(class = "button selected") : "Molecules by shape";
+                    a(class = "button", href = uri!(molecules_list)) : "Molecules by name";
+                }
                 main(style = "flex-direction: column;") {
                     @if molecule_too_large {
                         div(class = "emphasized-section") : "molecule does not fit onto canvas";
@@ -386,9 +390,6 @@ fn index(m: Option<FormMolecule>, b: Option<NonZero<u8>>) -> Result<RawHtml<Stri
                     }
                     div(id = "result", style = "display: none;");
                     p(id = "error");
-                    p(id = "default") {
-                        a(href = uri!(molecules_list)) : "List of all molecules";
-                    }
                 }
                 canvas(id = "next", style = "display: none;");
                 : footer();
@@ -619,6 +620,10 @@ fn molecules_list() -> RawHtml<String> {
                 script(src = static_url!("common.js"));
             }
             body {
+                nav {
+                    a(class = "button", href = uri!(index(_, _))) : "Molecules by shape";
+                    a(class = "button selected") : "Molecules by name";
+                }
                 main {
                     @for (idx, (molecule, appearances)) in molecules::molecules().into_iter().sorted_by_key(|(_, appearances)| {
                         let mut names = appearances.iter().filter_map(|(_, _, name)| *name).collect_vec();

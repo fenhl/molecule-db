@@ -12,6 +12,9 @@ body {
     overflow: auto;
     text-align: center;
 }
+nav {
+    padding: 8px;
+}
 a {
     color: inherit;
     text-decoration: underline;
@@ -41,12 +44,15 @@ canvas {
 .canvas-button {
     position: absolute;
 }
+.button,
 .canvas-button > a {
     background-color: #2a2a3b;
     text-decoration: none;
     border-radius: 8px;
     padding: 8px;
 }
+.button:hover,
+.button.selected,
 .canvas-button > a:hover {
     background-color: #282838;
 }
@@ -96,9 +102,12 @@ main > div {
     .molecule-canvas {
         background-color: #ccd;
     }
+    .button,
     .canvas-button > a {
         background-color: #c4c4d5;
     }
+    .button:hover,
+    .button.selected,
     .canvas-button > a:hover {
         background-color: #d0d0e0;
     }
