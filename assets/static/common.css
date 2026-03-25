@@ -44,7 +44,19 @@ canvas {
 .canvas-button {
     position: absolute;
 }
-.button,
+.button {
+    background-color: #445;
+    text-decoration: none;
+    padding: 8px;
+}
+.button:nth-child(1) {
+    border-start-start-radius: 8px;
+    border-end-start-radius: 8px;
+}
+.button:nth-last-child(1) {
+    border-start-end-radius: 8px;
+    border-end-end-radius: 8px;
+}
 .canvas-button > a {
     background-color: #2a2a3b;
     text-decoration: none;
@@ -52,7 +64,9 @@ canvas {
     padding: 8px;
 }
 .button:hover,
-.button.selected,
+.button.selected {
+    background-color: #223;
+}
 .canvas-button > a:hover {
     background-color: #282838;
 }
@@ -102,12 +116,16 @@ main > div {
     .molecule-canvas {
         background-color: #ccd;
     }
-    .button,
+    .button {
+        background-color: #ccd;
+    }
     .canvas-button > a {
         background-color: #c4c4d5;
     }
     .button:hover,
-    .button.selected,
+    .button.selected {
+        background-color: #aab;
+    }
     .canvas-button > a:hover {
         background-color: #d0d0e0;
     }
