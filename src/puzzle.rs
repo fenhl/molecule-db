@@ -292,6 +292,7 @@ puzzles! {
     "Synthesis via Alcohol", SynthesisViaAlcohol, None,
     "Synthetic Malachite", SyntheticMalachite, None,
     "Taricene", Taricene, Some("https://events.critelli.technology/21042bbbbef69aef2000df9b97a4df9b"),
+    "Tax Fraud", TaxFraud, Some("https://events.critelli.technology/a39b83445002fbdea218e8b184a9e478"),
     "The Amazing Everything-Machine", TheAmazingEverythingMachine, Some("https://events.critelli.technology/OM2025week4_The_Amazing_Everything-Machine"),
     "Thermal Fuse", ThermalFuse, Some("https://events.critelli.technology/d3689000418b9687654554f28324d8d0"),
     "Thermic Capacitor", ThermicCapacitor, Some("https://events.critelli.technology/om2025week2_Thermic_Capacitor"),
