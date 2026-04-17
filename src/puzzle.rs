@@ -156,6 +156,7 @@ puzzles! {
     "Hydrophobic Water", HydrophobicWater, Some("https://events.critelli.technology/om2025week1_Hydrophobic_Water"),
     "Icelandic Lava Salt", IcelandicLavaSalt, Some("https://events.critelli.technology/952a099fce7b49281d4b95f0f37dae8e"),
     "Ignition Cord", IgnitionCord, Some("https://events.critelli.technology/OM2022Weeklies_IgnitionCord"),
+    "Immortal Filament", ImmortalFilament, Some("https://events.critelli.technology/483f5c168a293fbed5aaf12990be50cf"),
     "Improved Explosive Phial", ImprovedExplosivePhial, Some("https://drive.google.com/drive/folders/1aRi8dJIu7YPhikm-QXRboJybAr9ZlW0j"),
     "In Berlo's Basement", InBerlosBasement, Some("https://events.critelli.technology/66f74ef1aae21439a688b1cc54ca894c"),
     "In Loco Dispono", InLocoDispono, Some("https://events.critelli.technology/5b464528478f002ba6866f690bd01f40"),
