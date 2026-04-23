@@ -200,7 +200,7 @@ puzzles! {
     "Metal Division", MetalDivision, None,
     "Metallic Tincture", MetallicTincture, None,
     "Miraculous Autosalt", MiraculousAutosalt, Some("https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/"),
-    "Miraculous Dentrifice", MiraculousDentrifice, None,
+    "Miraculous Dentifrice", MiraculousDentifrice, None,
     "Mirror Polish", MirrorPolish, None,
     "Mist of Dousing", MistOfDousing, Some("https://drive.google.com/drive/folders/1JX9JEdzXfFgn1-z4Yno_oMjSHHg8eGxE"),
     "Mist of Hallucination", MistOfHallucination, None,
