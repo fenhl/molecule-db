@@ -211,6 +211,7 @@ puzzles! {
     "My Arms Are Bound", MyArmsAreBound, Some("https://events.critelli.technology/ea51e6dcb8f5b83c0ef6e6b1f965d57a"),
     "Nightmare Fuel", NightmareFuel, Some("https://events.critelli.technology/OM2022Weeklies_NightmareFuel"),
     "Nylon", Nylon, Some("https://events.critelli.technology/OM2025Weeklies9_Nylon"),
+    "Orange Vitriol", OrangeVitriol, Some("https://events.critelli.technology/547de89828787801144566f080b0b213"),
     "Ornamental Plating", OrnamentalPlating, Some("https://events.critelli.technology/OM2024Weeklies_OrnamentalPlating"),
     "Overloaded", Overloaded, Some("https://reddit.com/r/opus_magnum/comments/f7674d/week_5_overloaded/"),
     "Pousse-Café", PousseCafe, Some("https://events.critelli.technology/f883eb7701f420e1b1960eabe37b7fc1"),

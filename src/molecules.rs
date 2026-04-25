@@ -364,6 +364,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, InOut, Option<&'static 
             (Puzzle::PigIron, InOut::Reagent, Some("Elemental Fire")),
             (Puzzle::HighExplosive, InOut::Reagent, Some("Elemental Fire")),
             (Puzzle::CanisterShot, InOut::Reagent, Some("Elemental Fire")),
+            (Puzzle::OrangeVitriol, InOut::Reagent, Some("Elemental Fire")),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Gold], bonds: collect![] }, vec![
             (Puzzle::RefinedGold, InOut::Product, Some("Elemental Gold (1)")),
@@ -588,6 +589,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, InOut, Option<&'static 
             (Puzzle::SophickMercuryJournal, InOut::Reagent, Some("Elemental Silver (2)")),
             (Puzzle::MooringCable, InOut::Reagent, Some("Elemental Silver (2)")),
             (Puzzle::SurveyingMagnet, InOut::Reagent, Some("Elemental Silver (2)")),
+            (Puzzle::OrangeVitriol, InOut::Reagent, Some("Elemental Silver (2)")),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Tin], bonds: collect![] }, vec![
             (Puzzle::FragrantPowders, InOut::Reagent, Some("Elemental Tin")),
@@ -1018,6 +1020,12 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, InOut, Option<&'static 
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 1 } => Atom::Salt, HexIndex { q: 0, r: 2 } => Atom::Salt, HexIndex { q: 1, r: 0 } => Atom::Salt, HexIndex { q: 1, r: 1 } => Atom::Iron, HexIndex { q: 1, r: 2 } => Atom::Salt, HexIndex { q: 2, r: 0 } => Atom::Salt, HexIndex { q: 2, r: 1 } => Atom::Salt], bonds: collect![Bond { start: HexIndex { q: 0, r: 1 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 2 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 0 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 1 }, end: HexIndex { q: 1, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 1 }, end: HexIndex { q: 2, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 1 }, end: HexIndex { q: 2, r: 1 }, ty: BondType::Normal }] }, vec![
             (Puzzle::SurrenderFlare, InOut::Reagent, Some("Orange Flare Salt")),
+        ]),
+        (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Silver, HexIndex { q: 0, r: 1 } => Atom::Fire, HexIndex { q: 0, r: 2 } => Atom::Silver, HexIndex { q: 1, r: 0 } => Atom::Fire], bonds: collect![Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 1, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 1 }, end: HexIndex { q: 0, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 1 }, end: HexIndex { q: 1, r: 0 }, ty: BondType::Normal }] }, vec![
+            (Puzzle::OrangeVitriol, InOut::Product, Some("Orange Vitriol (Dexter)")),
+        ]),
+        (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Silver, HexIndex { q: 0, r: 1 } => Atom::Fire, HexIndex { q: 0, r: 2 } => Atom::Silver, HexIndex { q: 1, r: 1 } => Atom::Fire], bonds: collect![Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 0, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 1 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Triplex { red: true, black: true, yellow: true } }, Bond { start: HexIndex { q: 0, r: 2 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }] }, vec![
+            (Puzzle::OrangeVitriol, InOut::Product, Some("Orange Vitriol (Sinister)")),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Silver, HexIndex { q: 1, r: 0 } => Atom::Copper, HexIndex { q: 1, r: 1 } => Atom::Copper], bonds: collect![Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 1, r: 0 }, ty: BondType::Triplex { red: true, black: true, yellow: true } }, Bond { start: HexIndex { q: 1, r: 0 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Triplex { red: true, black: true, yellow: true } }] }, vec![
             (Puzzle::Tinsel, InOut::Reagent, Some("Ornament Shard")),
