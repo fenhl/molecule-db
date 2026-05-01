@@ -167,6 +167,7 @@ puzzles! {
     "In Berlo's Basement", InBerlosBasement, Some("https://events.critelli.technology/66f74ef1aae21439a688b1cc54ca894c"),
     "In Loco Dispono", InLocoDispono, Some("https://events.critelli.technology/5b464528478f002ba6866f690bd01f40"),
     "Instant Mirror Coat", InstantMirrorCoat, Some("https://events.critelli.technology/OM2024Weeklies_InstantMirrorCoat"),
+    "Intumescent Lead", IntumescentLead, Some("https://events.critelli.technology/fc37c3c4183d77bb17bf827ae66c53d7"),
     "Invariant Metal", InvariantMetal, None,
     "Invisible Ink", InvisibleInk, None,
     "Jewel Box", JewelBox, Some("https://events.critelli.technology/OM2025Weeklies1_JewelBox"),
