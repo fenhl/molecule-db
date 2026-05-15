@@ -22,7 +22,9 @@ use {
         general_purpose::URL_SAFE as BASE64,
     },
     enum_iterator::all,
+    gophermap::GopherEntry,
     itertools::Itertools as _,
+    lazy_regex::regex_captures,
     omsim_rs::{
         data::*,
         parse::parse_puzzle,
@@ -30,10 +32,7 @@ use {
     reqwest as _, // gix TLS backend config
     rocket::{
         data::ToByteUnit as _,
-        form::{
-            self,
-            FromFormField,
-        },
+        form,
         fs::FileServer,
         http::{
             Status,
@@ -56,10 +55,23 @@ use {
         Deserialize,
         Serialize,
     },
-    tokio::process::Command,
+    tokio::{
+        io::{
+            AsyncBufReadExt as _,
+            AsyncReadExt as _,
+            AsyncWriteExt as _,
+            BufReader,
+        },
+        net::TcpStream,
+        process::Command,
+    },
+    url::Url,
     wheel::{
         fs,
-        traits::AsyncCommandOutputExt as _,
+        traits::{
+            AsyncCommandOutputExt as _,
+            IoResultExt as _,
+        },
     },
     crate::{
         puzzle::Puzzle,
@@ -311,7 +323,7 @@ fn format_atom(atom: Atom) -> &'static str {
 }
 
 #[rocket::async_trait]
-impl<'v> FromFormField<'v> for FormMolecule {
+impl<'v> form::FromFormField<'v> for FormMolecule {
     fn from_value(field: form::ValueField<'v>) -> form::Result<'v, Self> {
         Ok(Self::read_sync(&mut &*BASE64.decode(field.value).map_err(|e| form::Error::validation(e.to_string()))?).map_err(|e| form::Error::validation(e.to_string()))?)
     }
@@ -569,7 +581,7 @@ struct MoleculeResponseV2 {
 #[serde(rename_all = "camelCase")]
 struct Appearance {
     puzzle: &'static str,
-    url: Option<&'static str>,
+    url: Option<Url>,
     inout: InOut,
     name: Option<&'static str>,
 }
@@ -590,7 +602,7 @@ fn molecule_from_state_v2(state: Json<JsState>) -> Result<Json<MoleculeResponseV
                 .filter_map(|(puzzle, inout, name)| Some((puzzle, inout, name?)))
                 .map(|(puzzle, inout, name)| Appearance {
                     puzzle: puzzle.as_str(),
-                    url: puzzle.url(),
+                    url: puzzle.source().url(),
                     name: Some(name),
                     inout,
                 })
@@ -625,7 +637,7 @@ fn molecule_from_state_v3(state: Json<JsState>) -> Result<Json<MoleculeResponseV
         if iter_molecule == molecule {
             response.appearances = appearances.into_iter().map(|(puzzle, inout, name)| Appearance {
                 puzzle: puzzle.as_str(),
-                url: puzzle.url(),
+                url: puzzle.source().url(),
                 inout, name,
             }).collect();
             break
@@ -715,12 +727,26 @@ async fn main(Args { subcommand }: Args) -> Result<(), Error> {
     if let Some(subcommand) = subcommand {
         match subcommand {
             Subcommand::Validate => {
+                println!("downloading critelli Gopher index");
+                let mut critelli_puzzles = HashMap::new();
+                let mut tcp_client = BufReader::new(TcpStream::connect(("events.critelli.technology", 70)).await.at_unknown()?);
+                tcp_client.write_all(b"/\r\n").await.at_unknown()?;
+                let mut buf = String::default();
+                while tcp_client.read_line(&mut buf).await.at_unknown()? > 0 {
+                    if let Some(GopherEntry { item_type: gophermap::ItemType::Binary, selector, host, port, .. }) = GopherEntry::from(&buf) {
+                        if let Some((_, url_part)) = regex_captures!("^/puzzle/(.+)/.+\\.puzzle$", selector) {
+                            critelli_puzzles.insert(url_part.to_owned(), (host.to_owned(), port, selector.to_owned()));
+                        }
+                    }
+                    buf.clear();
+                }
                 let zlbb_parent = {
                     #[cfg(any(target_os = "windows", target_os = "linux"))] { UserDirs::new().ok_or(Error::MissingHomeDir)?.home_dir().join("git").join("github.com").join("F43nd1r").join("zachtronics-leaderboard-bot") }
                     #[cfg(target_os = "macos")] { PathBuf::from("/opt/git/github.com/F43nd1r/zachtronics-leaderboard-bot") }
                 };
                 let zlbb_path = zlbb_parent.join("main");
                 if fs::exists(&zlbb_path).await? {
+                    println!("updating zlbb repo");
                     let repo = gix::open(&zlbb_path)?;
                     repo.find_default_remote(gix::remote::Direction::Fetch).ok_or(Error::NoDefaultRemote)??
                         .connect(gix::remote::Direction::Fetch)?
@@ -729,39 +755,65 @@ async fn main(Args { subcommand }: Args) -> Result<(), Error> {
                         .receive(gix::progress::Discard /*TODO show progress on command line? */, &gix::interrupt::IS_INTERRUPTED)?;
                     Command::new("git").arg("reset").arg("--hard").arg("origin/HEAD").current_dir(&zlbb_path).check("git reset").await?; //TODO use gix, blocked on https://github.com/GitoxideLabs/gitoxide/issues/301
                 } else {
+                    println!("cloning zlbb repo");
                     fs::create_dir_all(zlbb_parent).await?;
                     gix::prepare_clone("https://github.com/F43nd1r/zachtronics-leaderboard-bot.git", &zlbb_path)?
                         .with_shallow(gix::remote::fetch::Shallow::DepthAtRemote(NonZero::<u32>::MIN))
                         .fetch_then_checkout(gix::progress::Discard /*TODO show progress on command line? */, &gix::interrupt::IS_INTERRUPTED)?.0
                         .main_worktree(gix::progress::Discard /*TODO show progress on command line? */, &gix::interrupt::IS_INTERRUPTED)?;
                 }
+                wheel::print_flush!("validating puzzles")?;
                 for puzzle in all::<Puzzle>() {
-                    if let Some(zlbb_id) = puzzle.zlbb_id() {
-                        let omsim_rs::data::Puzzle { reagents, products, .. } = parse_puzzle(&fs::read(zlbb_path.join(format!("src/main/resources/om/puzzle/{zlbb_id}.puzzle"))).await?).map_err(|e| Error::ParsePuzzle(e))?;
-                        let mut found_reagents = Vec::default();
-                        let mut found_products = Vec::default();
-                        for (molecule, puzzles) in molecules::molecules() {
-                            if let Some((_, _, name)) = puzzles.iter().find(|(iter_puzzle, in_out, _)| *iter_puzzle == puzzle && in_out.is_reagent()) {
-                                assert!(reagents.iter().any(|iter_molecule| iter_molecule.normalized() == molecule), "{} ({molecule:?}) not found in zlbb version of {puzzle}", if let Some(name) = name { format!("reagent {name:?}") } else { format!("unnamed reagent") });
-                                if !found_reagents.iter().any(|iter_molecule| *iter_molecule == molecule) {
-                                    found_reagents.push(molecule.clone());
-                                }
-                            }
-                            if let Some((_, _, name)) = puzzles.iter().find(|(iter_puzzle, in_out, _)| *iter_puzzle == puzzle && in_out.is_product()) {
-                                assert!(products.iter().any(|iter_molecule| iter_molecule.normalized() == molecule), "{} ({molecule:?}) not found in zlbb version of {puzzle}", if let Some(name) = name { format!("product {name:?}") } else { format!("unnamed product") });
-                                if !found_products.iter().any(|iter_molecule| *iter_molecule == molecule) {
-                                    found_products.push(molecule);
-                                }
+                    let omsim_rs::data::Puzzle { reagents, products, .. } = parse_puzzle(&match puzzle.source() {
+                        puzzle::Source::Tutorial | puzzle::Source::Computation { .. } | puzzle::Source::CritelliComputation { .. } => continue, // nothing to validate against
+                        puzzle::Source::Critelli { url_part } => {
+                            let (host, port, selector) = critelli_puzzles.remove(url_part).expect(&format!("missing critelli puzzle: {url_part}"));
+                            let mut tcp_client = TcpStream::connect((host, port)).await.at_unknown()?;
+                            tcp_client.write_all(selector.as_ref()).await.at_unknown()?;
+                            tcp_client.write_all(b"\r\n").await.at_unknown()?;
+                            let mut buf = Vec::default();
+                            tcp_client.read_to_end(&mut buf).await.at_unknown()?;
+                            buf
+                        }
+                        puzzle::Source::CritelliPrivate { url_part, file_stem } => {
+                            let mut tcp_client = TcpStream::connect(("events.critelli.technology", 70)).await.at_unknown()?;
+                            tcp_client.write_all(b"/puzzle/").await.at_unknown()?;
+                            tcp_client.write_all(url_part.as_ref()).await.at_unknown()?;
+                            tcp_client.write_all(b"/").await.at_unknown()?;
+                            tcp_client.write_all(file_stem.as_ref()).await.at_unknown()?;
+                            tcp_client.write_all(b".puzzle\r\n").await.at_unknown()?;
+                            let mut buf = Vec::default();
+                            tcp_client.read_to_end(&mut buf).await.at_unknown()?;
+                            buf
+                        }
+                        puzzle::Source::Official { zlbb_id } | puzzle::Source::Zlbb { zlbb_id, .. } => fs::read(zlbb_path.join(format!("src/main/resources/om/puzzle/{zlbb_id}.puzzle"))).await?,
+                        puzzle::Source::Other { .. } => fs::read(format!("assets/puzzle/{}.puzzle", puzzle.url_part())).await?,
+                    }).map_err(|e| Error::ParsePuzzle(e))?;
+                    let mut found_reagents = Vec::default();
+                    let mut found_products = Vec::default();
+                    for (molecule, puzzles) in molecules::molecules() {
+                        if let Some((_, _, name)) = puzzles.iter().find(|(iter_puzzle, in_out, _)| *iter_puzzle == puzzle && in_out.is_reagent()) {
+                            assert!(reagents.iter().any(|iter_molecule| iter_molecule.normalized() == molecule), "{} ({molecule:?}) not found in upstream version of {puzzle}", if let Some(name) = name { format!("reagent {name:?}") } else { format!("unnamed reagent") });
+                            if !found_reagents.iter().any(|iter_molecule| *iter_molecule == molecule) {
+                                found_reagents.push(molecule.clone());
                             }
                         }
-                        for molecule in reagents {
-                            assert!(found_reagents.contains(&molecule.normalized()), "zlbb version of {puzzle} has an additional reagent: {molecule:?}");
-                        }
-                        for molecule in products {
-                            assert!(found_products.contains(&molecule.normalized()), "zlbb version of {puzzle} has an additional product: {molecule:?}");
+                        if let Some((_, _, name)) = puzzles.iter().find(|(iter_puzzle, in_out, _)| *iter_puzzle == puzzle && in_out.is_product()) {
+                            assert!(products.iter().any(|iter_molecule| iter_molecule.normalized() == molecule), "{} ({molecule:?}) not found in upstream version of {puzzle}", if let Some(name) = name { format!("product {name:?}") } else { format!("unnamed product") });
+                            if !found_products.iter().any(|iter_molecule| *iter_molecule == molecule) {
+                                found_products.push(molecule);
+                            }
                         }
                     }
+                    for molecule in reagents {
+                        assert!(found_reagents.contains(&molecule.normalized()), "upstream version of {puzzle} has an additional reagent: {molecule:?}");
+                    }
+                    for molecule in products {
+                        assert!(found_products.contains(&molecule.normalized()), "upstream version of {puzzle} has an additional product: {molecule:?}");
+                    }
+                    wheel::print_flush!(".")?;
                 }
+                println!("\nvalid");
             }
         }
     } else {
