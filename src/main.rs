@@ -23,7 +23,11 @@ use {
     },
     enum_iterator::all,
     itertools::Itertools as _,
-    omsim_rs::data::*,
+    omsim_rs::{
+        data::*,
+        parse::parse_puzzle,
+    },
+    reqwest as _, // gix TLS backend config
     rocket::{
         data::ToByteUnit as _,
         form::{
@@ -52,7 +56,13 @@ use {
         Deserialize,
         Serialize,
     },
+    tokio::process::Command,
+    wheel::{
+        fs,
+        traits::AsyncCommandOutputExt as _,
+    },
     crate::{
+        puzzle::Puzzle,
         proto::FormMolecule,
         unparse::Unparse,
         util::{
@@ -61,6 +71,8 @@ use {
         },
     },
 };
+#[cfg(any(target_os = "windows", target_os = "linux"))] use directories::UserDirs;
+#[cfg(target_os = "macos")] use std::path::PathBuf;
 
 include!(concat!(env!("OUT_DIR"), "/static_files.rs"));
 
@@ -75,6 +87,22 @@ enum InOut {
     Reagent,
     Product,
     Both,
+}
+
+impl InOut {
+    fn is_reagent(&self) -> bool {
+        match self {
+            Self::Product => false,
+            Self::Reagent | Self::Both => true,
+        }
+    }
+
+    fn is_product(&self) -> bool {
+        match self {
+            Self::Reagent => false,
+            Self::Product | Self::Both => true,
+        }
+    }
 }
 
 trait MoleculeExt {
@@ -649,18 +677,107 @@ fn molecules_list() -> RawHtml<String> {
     }
 }
 
-#[rocket::launch]
-fn rocket() -> _ {
-    rocket::custom(rocket::Config {
-        port: 24821,
-        ..rocket::Config::default()
-    })
-    .mount("/", rocket::routes![
-        index,
-        molecule_from_state_v1,
-        molecule_from_state_v2,
-        molecule_from_state_v3,
-        molecules_list,
-    ])
-    .mount("/static", FileServer::new("assets/static", rocket::fs::Options::None))
+#[derive(clap::Parser)]
+struct Args {
+    #[clap(subcommand)]
+    subcommand: Option<Subcommand>,
+}
+
+#[derive(clap::Subcommand)]
+enum Subcommand {
+    Validate,
+}
+
+#[derive(Debug, thiserror::Error)]
+enum Error {
+    #[error(transparent)] GitCheckout(#[from] gix::clone::checkout::main_worktree::Error),
+    #[error(transparent)] GitClone(#[from] gix::clone::Error),
+    #[error(transparent)] GitCloneFetch(#[from] gix::clone::fetch::Error),
+    #[error(transparent)] GitConnect(#[from] gix::remote::connect::Error),
+    #[error(transparent)] GitFetch(#[from] gix::remote::fetch::Error),
+    #[error(transparent)] GitFindRemote(#[from] gix::remote::find::existing::Error),
+    #[error(transparent)] GitOpen(#[from] gix::open::Error),
+    #[error(transparent)] GitPrepareFetch(#[from] gix::remote::fetch::prepare::Error),
+    #[error(transparent)] Rocket(#[from] rocket::Error),
+    #[error(transparent)] Wheel(#[from] wheel::Error),
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    #[error("failed to locate user folder")]
+    MissingHomeDir,
+    #[error("no default remote configured for zlbb repo")]
+    NoDefaultRemote,
+    #[error("failed to parse puzzle: {0}")]
+    ParsePuzzle(&'static str),
+}
+
+#[wheel::main(rocket)]
+async fn main(Args { subcommand }: Args) -> Result<(), Error> {
+    let _ = rustls::crypto::ring::default_provider().install_default();
+    if let Some(subcommand) = subcommand {
+        match subcommand {
+            Subcommand::Validate => {
+                let zlbb_parent = {
+                    #[cfg(any(target_os = "windows", target_os = "linux"))] { UserDirs::new().ok_or(Error::MissingHomeDir)?.home_dir().join("git").join("github.com").join("F43nd1r").join("zachtronics-leaderboard-bot") }
+                    #[cfg(target_os = "macos")] { PathBuf::from("/opt/git/github.com/F43nd1r/zachtronics-leaderboard-bot") }
+                };
+                let zlbb_path = zlbb_parent.join("main");
+                if fs::exists(&zlbb_path).await? {
+                    let repo = gix::open(&zlbb_path)?;
+                    repo.find_default_remote(gix::remote::Direction::Fetch).ok_or(Error::NoDefaultRemote)??
+                        .connect(gix::remote::Direction::Fetch)?
+                        .prepare_fetch(gix::progress::Discard /*TODO show progress on command line? */, Default::default())?
+                        .with_shallow(gix::remote::fetch::Shallow::DepthAtRemote(NonZero::<u32>::MIN))
+                        .receive(gix::progress::Discard /*TODO show progress on command line? */, &gix::interrupt::IS_INTERRUPTED)?;
+                    Command::new("git").arg("reset").arg("--hard").arg("origin/HEAD").current_dir(&zlbb_path).check("git reset").await?; //TODO use gix, blocked on https://github.com/GitoxideLabs/gitoxide/issues/301
+                } else {
+                    fs::create_dir_all(zlbb_parent).await?;
+                    gix::prepare_clone("https://github.com/F43nd1r/zachtronics-leaderboard-bot.git", &zlbb_path)?
+                        .with_shallow(gix::remote::fetch::Shallow::DepthAtRemote(NonZero::<u32>::MIN))
+                        .fetch_then_checkout(gix::progress::Discard /*TODO show progress on command line? */, &gix::interrupt::IS_INTERRUPTED)?.0
+                        .main_worktree(gix::progress::Discard /*TODO show progress on command line? */, &gix::interrupt::IS_INTERRUPTED)?;
+                }
+                for puzzle in all::<Puzzle>() {
+                    if let Some(zlbb_id) = puzzle.zlbb_id() {
+                        let omsim_rs::data::Puzzle { reagents, products, .. } = parse_puzzle(&fs::read(zlbb_path.join(format!("src/main/resources/om/puzzle/{zlbb_id}.puzzle"))).await?).map_err(|e| Error::ParsePuzzle(e))?;
+                        let mut found_reagents = Vec::default();
+                        let mut found_products = Vec::default();
+                        for (molecule, puzzles) in molecules::molecules() {
+                            if let Some((_, _, name)) = puzzles.iter().find(|(iter_puzzle, in_out, _)| *iter_puzzle == puzzle && in_out.is_reagent()) {
+                                assert!(reagents.iter().any(|iter_molecule| iter_molecule.normalized() == molecule), "{} ({molecule:?}) not found in zlbb version of {puzzle}", if let Some(name) = name { format!("reagent {name:?}") } else { format!("unnamed reagent") });
+                                if !found_reagents.iter().any(|iter_molecule| *iter_molecule == molecule) {
+                                    found_reagents.push(molecule.clone());
+                                }
+                            }
+                            if let Some((_, _, name)) = puzzles.iter().find(|(iter_puzzle, in_out, _)| *iter_puzzle == puzzle && in_out.is_product()) {
+                                assert!(products.iter().any(|iter_molecule| iter_molecule.normalized() == molecule), "{} ({molecule:?}) not found in zlbb version of {puzzle}", if let Some(name) = name { format!("product {name:?}") } else { format!("unnamed product") });
+                                if !found_products.iter().any(|iter_molecule| *iter_molecule == molecule) {
+                                    found_products.push(molecule);
+                                }
+                            }
+                        }
+                        for molecule in reagents {
+                            assert!(found_reagents.contains(&molecule.normalized()), "zlbb version of {puzzle} has an additional reagent: {molecule:?}");
+                        }
+                        for molecule in products {
+                            assert!(found_products.contains(&molecule.normalized()), "zlbb version of {puzzle} has an additional product: {molecule:?}");
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        rocket::custom(rocket::Config {
+            port: 24821,
+            ..rocket::Config::default()
+        })
+        .mount("/", rocket::routes![
+            index,
+            molecule_from_state_v1,
+            molecule_from_state_v2,
+            molecule_from_state_v3,
+            molecules_list,
+        ])
+        .mount("/static", FileServer::new("assets/static", rocket::fs::Options::None))
+        .launch().await?;
+    }
+    Ok(())
 }

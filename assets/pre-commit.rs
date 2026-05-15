@@ -64,17 +64,29 @@ async fn main() -> Result<(), Error> {
         }
     }
 
-    println!("cargo deny");
-    Command::new("cargo").arg("+stable").arg("deny").arg("check").arg("advisories").arg("bans").check("cargo deny").await?;
-
     cfg_select! {
         target_os = "windows" => {
-            Command::new("cargo").arg("+stable").arg("check").spawn().at_command("cargo check")?.check("cargo check").await?;
-            Command::new("cargo").arg("+stable").arg("msrv").arg("verify").spawn().at_command("cargo check")?.check("cargo check").await?;
-            Command::new("wsl").arg("nix").arg("build").arg("--no-link").spawn().at_command("nix build")?.check("nix build").await?;
+            println!("cargo deny");
+            Command::new("cargo").arg("+stable").arg("deny").arg("check").arg("advisories").arg("bans").check("cargo deny").await?;
+
+            println!("cargo test");
+            Command::new("cargo").arg("+stable").arg("test").spawn().at_command("cargo test")?.check("cargo test").await?;
+
+            println!("cargo msrv");
+            Command::new("cargo").arg("+stable").arg("msrv").arg("verify").spawn().at_command("cargo msrv")?.check("cargo msrv").await?;
+
+            println!("molecule-db validate");
+            Command::new("wsl").arg("nix").arg("run").arg(".").arg("validate").spawn().at_command("molecule-db validate")?.check("molecule-db validate").await?;
         }
         any(target_os = "macos", target_os = "linux") => {
-            Command::new("nix").arg("build").arg("--no-link").spawn().at_command("nix build")?.check("nix build").await?;
+            println!("cargo deny");
+            Command::new("cargo").arg("deny").arg("check").arg("advisories").arg("bans").check("cargo deny").await?;
+
+            println!("cargo test");
+            Command::new("cargo").arg("test").spawn().at_command("cargo test")?.check("cargo test").await?;
+
+            println!("molecule-db validate");
+            Command::new("nix").arg("run").arg(".").arg("validate").spawn().at_command("molecule-db validate")?.check("molecule-db validate").await?;
         }
     }
 
