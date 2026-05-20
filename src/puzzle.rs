@@ -21,6 +21,7 @@ pub(crate) enum Source {
     Official {
         zlbb_id: &'static str,
     },
+    OfficialNonLb,
     Other {
         url: &'static str,
     },
@@ -35,7 +36,7 @@ impl Source {
     pub(crate) fn url(&self) -> Option<Url> {
         match self {
             Self::Critelli { url_part } | Self::CritelliComputation { url_part } | Self::CritelliPrivate { url_part, .. } => Some(format!("https://events.critelli.technology/{url_part}").parse().unwrap()),
-            Self::Official { .. } | Self::Tutorial => None,
+            Self::Official { .. } | Self::OfficialNonLb | Self::Tutorial => None,
             Self::Computation { url } | Self::Other { url } | Self::Zlbb { url, .. } => Some(url.parse().unwrap()),
         }
     }
@@ -59,6 +60,10 @@ fn critelli_private(url_part: &'static str, file_stem: &'static str) -> Source {
 
 fn official(zlbb_id: &'static str) -> Source {
     Source::Official { zlbb_id }
+}
+
+fn official_non_lb() -> Source {
+    Source::OfficialNonLb
 }
 
 fn other(url: &'static str) -> Source {
@@ -195,6 +200,7 @@ puzzles! {
     EmbalmingFluid => "Embalming Fluid", official("P108"),
     EmergencyAntidote => "Emergency Antidote", zlbb("w2450512232", "https://drive.google.com/drive/folders/1SL0WExUVLu6_xsvZCA9z29PH6RuFBrBd"),
     EndGame => "End Game", critelli("OM2023_W0_EndGame"),
+    EndurancePotion => "Endurance Potion", official_non_lb(), //TODO(https://github.com/F43nd1r/zachtronics-leaderboard-bot/pull/423)
     EphemeralMatrix => "Ephemeral Matrix", critelli("5a5504a1f72574d23012a6458d1a29b1"),
     EssenceOfCitrus => "Essence of Citrus", official("P257"),
     EvilOre => "Evil Ore", zlbb("w1698788220", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/"),
@@ -252,6 +258,7 @@ puzzles! {
     InstantMirrorCoat => "Instant Mirror Coat", critelli("OM2024Weeklies_InstantMirrorCoat"),
     IntumescentLead => "Intumescent Lead", critelli("fc37c3c4183d77bb17bf827ae66c53d7"),
     InvariantMetal => "Invariant Metal", official("P215"),
+    InvigoratingTonic => "Invigorating Tonic", official_non_lb(), //TODO(https://github.com/F43nd1r/zachtronics-leaderboard-bot/pull/423)
     InvisibleInk => "Invisible Ink", official("P032"),
     JewelBox => "Jewel Box", critelli("OM2025Weeklies1_JewelBox"),
     Lambent29 => "Lambent II/IX", official("P058"),
@@ -327,6 +334,7 @@ puzzles! {
     ProofOfCompleteness => "Proof of Completeness", official("P069"),
     ProspectorsSolvent => "Prospector's Solvent", official("P261"),
     PurifiedGold => "Purified Gold", official("P036"),
+    QuickeningCordial => "Quickening Cordial", official_non_lb(), //TODO(https://github.com/F43nd1r/zachtronics-leaderboard-bot/pull/423)
     QuietHours => "Quiet Hours", critelli("ff6feb9ee69a0450a117eb2a7c7de784"),
     QuintessentialAerogel => "Quintessential Aerogel", critelli("OM2022Weeklies_QuintAerogel"),
     QuintessentialCatalyst => "Quintessential Catalyst", other("https://discord.com/channels/278707932089155584/296373951800541186/877363315687436349"),
@@ -393,6 +401,7 @@ puzzles! {
     StainRemover => "Stain Remover", official("P034"),
     StaminaPotion => "Stamina Potion", official("P015"),
     SteelWool => "Steel Wool", official("P268"),
+    StormSensingPotion => "Storm-Sensing Potion", official_non_lb(), //TODO(https://github.com/F43nd1r/zachtronics-leaderboard-bot/pull/423)
     SuperconductiveCopper => "Superconductive Copper", other("https://discord.com/channels/278707932089155584/296373951800541186/854533289816358922"),
     SurrenderFlare => "Surrender Flare", official("P022"),
     SurveyingMagnet => "Surveying Magnet", official("P262"),
@@ -417,6 +426,7 @@ puzzles! {
     Touchstone => "Touchstone (2024 tournament)", critelli("6f37903681423b320da82fb57900291d"),
     TouchstoneJournal => "Touchstone (Journal issue X)", official("P245"),
     Transmutation110 => "Transmutation CX", critelli_computation("Week_9_TransmutationCX"),
+    UmbralMascara => "Umbral Mascara", official_non_lb(), //TODO(https://github.com/F43nd1r/zachtronics-leaderboard-bot/pull/423)
     UniversalCompound => "Universal Compound", official("P072"),
     UniversalSolvent => "Universal Solvent", official("P043"),
     UnstableCompound => "Unstable Compound", official("P040"),

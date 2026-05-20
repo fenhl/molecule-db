@@ -765,7 +765,7 @@ async fn main(Args { subcommand }: Args) -> Result<(), Error> {
                 wheel::print_flush!("validating puzzles")?;
                 for puzzle in all::<Puzzle>() {
                     let omsim_rs::data::Puzzle { reagents, products, .. } = parse_puzzle(&match puzzle.source() {
-                        puzzle::Source::Tutorial | puzzle::Source::Computation { .. } | puzzle::Source::CritelliComputation { .. } => continue, // nothing to validate against
+                        puzzle::Source::Tutorial | puzzle::Source::OfficialNonLb | puzzle::Source::Computation { .. } | puzzle::Source::CritelliComputation { .. } => continue, // nothing to validate against
                         puzzle::Source::Critelli { url_part } => {
                             let (host, port, selector) = critelli_puzzles.remove(url_part).expect(&format!("missing critelli puzzle: {url_part}"));
                             let mut tcp_client = TcpStream::connect((host, port)).await.at_unknown()?;
