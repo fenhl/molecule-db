@@ -15,13 +15,17 @@ use {
         fmt,
         mem,
         num::NonZero,
+        time::Duration,
     },
     async_proto::Protocol,
     base64::engine::{
         Engine as _,
         general_purpose::URL_SAFE as BASE64,
     },
-    enum_iterator::all,
+    enum_iterator::{
+        Sequence,
+        all,
+    },
     gophermap::GopherEntry,
     itertools::Itertools as _,
     lazy_regex::regex_captures,
@@ -31,6 +35,7 @@ use {
     },
     reqwest as _, // gix TLS backend config
     rocket::{
+        State,
         data::ToByteUnit as _,
         form,
         fs::FileServer,
@@ -49,6 +54,7 @@ use {
     },
     rocket_util::{
         Doctype,
+        ToHtml,
         html,
     },
     serde::{
@@ -73,6 +79,7 @@ use {
             IoResultExt as _,
         },
     },
+    xdg::BaseDirectories,
     crate::{
         puzzle::Puzzle,
         proto::FormMolecule,
@@ -85,6 +92,10 @@ use {
 };
 #[cfg(any(target_os = "windows", target_os = "linux"))] use directories::UserDirs;
 #[cfg(target_os = "macos")] use std::path::PathBuf;
+#[cfg(feature = "night")] use {
+    std::iter,
+    wheel::traits::ReqwestResponseExt as _,
+};
 
 include!(concat!(env!("OUT_DIR"), "/static_files.rs"));
 
@@ -354,23 +365,144 @@ impl UriDisplay<Query> for FormMolecule {
 
 impl_from_uri_param_identity!([Query] FormMolecule);
 
-fn footer() -> RawHtml<String> { //TODO make this a const (requires const_html macro)
-    html! {
-        footer(class = "muted") {
-            p {
-                : "hosted by ";
-                a(href = "https://fenhl.net/") : "Fenhl";
-                : " • ";
-                a(href = "https://fenhl.net/disc") : "disclaimer";
-                : " • ";
-                a(href = "https://status.fenhl.net/") : "status";
-                : " • ";
-                a(href = "https://github.com/fenhl/molecule-db") : "source code";
+#[derive(Clone, Deserialize)]
+#[cfg_attr(not(feature = "night"), derive(Default))]
+struct Config {
+    #[cfg(feature = "night")]
+    night_password: String,
+}
+
+impl Config {
+    async fn load() -> Result<Self, Error> {
+        if let Some(config) = BaseDirectories::new().find_config_file("fenhl/molecule-db.json") {
+            Ok(fs::read_json(config).await?)
+        } else {
+            #[cfg(not(feature = "night"))] { Ok(Self::default()) }
+            #[cfg(feature = "night")] { Err(Error::MissingConfig) }
+        }
+    }
+}
+
+#[cfg(feature = "night")]
+async fn night_report(config: &Config, http_client: &reqwest::Client, path: &str, extra: Option<&str>) -> Result<(), Error> {
+    http_client
+        .post("https://night.fenhl.net/dev/dushanbe/report")
+        .bearer_auth(&config.night_password)
+        .form(&iter::once(("path", path)).chain(extra.map(|extra| ("extra", extra))).collect_vec())
+        .send().await?
+        .detailed_error_for_status().await?;
+    Ok(())
+}
+
+#[cfg(feature = "night")]
+fn night_report_sync(config: &Config, path: &str, extra: Option<&str>) -> Result<(), Error> {
+    reqwest::blocking::Client::new()
+        .post("https://night.fenhl.net/dev/dushanbe/report")
+        .bearer_auth(&config.night_password)
+        .form(&iter::once(("path", path)).chain(extra.map(|extra| ("extra", extra))).collect_vec())
+        .send()?
+        .error_for_status()?;
+    Ok(())
+}
+
+async fn external_link(#[cfg_attr(not(feature = "night"), allow(unused))] config: &Config, #[cfg_attr(not(feature = "night"), allow(unused))] http_client: &reqwest::Client, url: &str, display: impl ToHtml) -> Result<RawHtml<String>, Error> {
+    let url = Url::parse(url)?;
+    Ok(html! {
+        a(href = url) {
+            @match url.host_str() {
+                Some("discord.com") => img(class = "favicon", alt = "external link (discord.com)", src = static_url!("discord-favicon.ico"));
+                Some("github.com") => picture(class = "favicon") {
+                    source(srcset = "https://github.githubassets.com/favicons/favicon.svg", media = "(prefers-color-scheme: light)");
+                    img(alt = "external link (github.com)", src = "https://github.githubassets.com/favicons/favicon-dark.svg");
+                }
+                Some("drive.google.com") => img(class = "favicon", alt = "external link (drive.google.com)", src = "https://www.gstatic.com/images/branding/productlogos/drive_2026/v1/web-32dp/logo_drive_2026_color_1x_web_32dp.png");
+                Some("reddit.com") => img(class = "favicon", alt = "external link (reddit.com)", srcset = "https://www.redditstatic.com/shreddit/assets/favicon/64x64.png 64w, https://www.redditstatic.com/shreddit/assets/favicon/128x128.png 128w, https://www.redditstatic.com/shreddit/assets/favicon/192x192.png 192w");
+                Some("fenhl.net" | "status.fenhl.net") => img(class = "favicon", alt = "external link (fenhl.net)", srcset = "https://fenhl.net/static/ava/pineapple/p-sq-16.png 16w, https://fenhl.net/static/ava/pineapple/p-sq-32.png 32w, https://fenhl.net/static/ava/pineapple/p-sq-64.png 64w, https://fenhl.net/static/ava/pineapple/p-sq-128.png 128w, https://fenhl.net/static/ava/pineapple/p-sq-256.png 256w");
+                Some("critelli.technology") => svg(class = "favicon", xmlns = "http://www.w3.org/2000/svg", viewBox = "0 0 24 24") {
+                    path(style = "fill: light-dark(black, white)", d = "M21.658 3.786l-3.658 3.318v-1.104c0-3.313-2.687-6-6-6s-6 2.687-6 6v4h-3v10.707l-2 1.813 1.346 1.48 20.654-18.734-1.342-1.48zm-5.658 5.132l-1.194 1.082h-6.806v-4c0-2.205 1.795-4 4-4s4 1.795 4 4v2.918zm5 1.082v14h-16.391l15.422-14h.969z");
+                }
+                Some("events.critelli.technology") => img(class = "favicon", alt = "external link (events.critelli.technology)", src = "https://events.critelli.technology/favicon.ico");
+                Some(host) => {
+                    @cfg(feature = "night") {
+                        @let () = night_report(config, http_client, "/dev/dushanbe/mol/faviconError", Some(&format!("no favicon defined for host {host:?}"))).await?;
+                    }
+                    span(class = "favicon") : "🌐";
+                }
+                None => {
+                    @cfg(feature = "night") {
+                        @let () = night_report(config, http_client, "/dev/dushanbe/mol/faviconError", Some(&format!("URL {url:?} has no host"))).await?;
+                    }
+                    span(class = "favicon") : "🌐";
+                }
             }
-            p {
-                : "Special thanks to panic whose ";
-                a(href = "http://critelli.technology/transmogrification.html") : "Tonic of Transmogrification reagent builder";
-                : " served as the basis for parts of this website's code!";
+            : display;
+        }
+    })
+}
+
+#[derive(PartialEq, Eq, Sequence)]
+enum Tab {
+    MoleculeInput,
+    MoleculeList,
+    Puzzles,
+}
+
+impl Tab {
+    fn uri(&self) -> rocket::http::uri::Origin<'static> {
+        match self {
+            Self::MoleculeInput => uri!(index(_, _)),
+            Self::MoleculeList => uri!(molecules_list),
+            Self::Puzzles => uri!(puzzle::index()),
+        }
+    }
+
+    fn label(&self) -> &'static str {
+        match self {
+            Self::MoleculeInput => "Molecule input",
+            Self::MoleculeList => "Molecule list",
+            Self::Puzzles => "Puzzles",
+        }
+    }
+}
+
+async fn page(config: &Config, http_client: &reqwest::Client, tab: Tab, is_subpage: bool, title: impl ToHtml, content: impl ToHtml, scripts: impl ToHtml) -> RawHtml<String> {
+    html! {
+        : Doctype;
+        html {
+            head {
+                meta(charset = "utf-8");
+                title : title;
+                meta(name = "viewport", content = "width=device-width, initial-scale=1, shrink-to-fit=no");
+                link(rel = "icon", href = static_url!("favicon.svg"));
+                link(rel = "stylesheet", href = static_url!("common.css"));
+                script(src = static_url!("common.js"));
+            }
+            body {
+                nav {
+                    @for iter_tab in all::<Tab>() {
+                        a(class = if tab == iter_tab { "button selected" } else { "button" }, href? = (tab != iter_tab || is_subpage).then(|| iter_tab.uri())) : iter_tab.label();
+                    }
+                }
+                : content;
+                footer(class = "muted") {
+                    hr;
+                    p {
+                        : "Opus Magnum molecule database hosted by ";
+                        : external_link(config, http_client, "https://fenhl.net/", "Fenhl").await.unwrap();
+                        : " • ";
+                        : external_link(config, http_client, "https://fenhl.net/disc", "disclaimer").await.unwrap();
+                        : " • ";
+                        : external_link(config, http_client, "https://status.fenhl.net/", "status").await.unwrap();
+                        : " • ";
+                        : external_link(config, http_client, "https://github.com/fenhl/molecule-db", "source code").await.unwrap();
+                    }
+                    p {
+                        : "Special thanks to panic whose ";
+                        : external_link(config, http_client, "http://critelli.technology/transmogrification.html", "Tonic of Transmogrification reagent builder").await.unwrap();
+                        : " served as the basis for parts of this website's code!";
+                    }
+                }
+                : scripts;
             }
         }
     }
@@ -382,7 +514,7 @@ enum IndexError {
 }
 
 #[rocket::get("/?<m>&<b>")]
-fn index(m: Option<FormMolecule>, b: Option<NonZero<u8>>) -> Result<RawHtml<String>, IndexError> {
+async fn index(config: &State<Config>, http_client: &State<reqwest::Client>, m: Option<FormMolecule>, b: Option<NonZero<u8>>) -> Result<RawHtml<String>, IndexError> {
     let (js_state, min_radius, radius, molecule_too_large) = if let Some(FormMolecule(molecule)) = m.clone() {
         match JsState::new(molecule, b) {
             Ok((js_state, min_radius)) => (Some(js_state), min_radius, b.unwrap_or_else(|| min_radius.max(NonZero::new(5).unwrap())), false),
@@ -391,65 +523,48 @@ fn index(m: Option<FormMolecule>, b: Option<NonZero<u8>>) -> Result<RawHtml<Stri
     } else {
         (None, NonZero::<u8>::MIN, b.unwrap_or_else(|| NonZero::new(5).unwrap()), false)
     };
-    Ok(html! {
-        : Doctype;
-        html {
-            head {
-                meta(charset = "utf-8");
-                title : "Opus Magnum Molecule Database";
-                meta(name = "viewport", content = "width=device-width, initial-scale=1, shrink-to-fit=no");
-                link(rel = "icon", href = static_url!("favicon.svg"));
-                link(rel = "stylesheet", href = static_url!("common.css"));
-                script(src = static_url!("common.js"));
+    Ok(page(config, http_client, Tab::MoleculeInput, false, "Opus Magnum Molecule Database", html! {
+        main(style = "flex-direction: column;") {
+            @if molecule_too_large {
+                div(class = "emphasized-section") : "molecule does not fit onto canvas";
             }
-            body {
-                nav {
-                    a(class = "button selected") : "Molecules by shape";
-                    a(class = "button", href = uri!(molecules_list)) : "Molecules by name";
+            h3 : "ENTER MOLECULE TO LOOK UP";
+            div(id = "canvas-wrapper") {
+                canvas(id = "current");
+                div(id = "clear", class = "canvas-button", style = "display: none;") {
+                    a(href = uri!(index(_, if radius.get() == 5 { None } else { Some(radius) }))) : "Clear";
                 }
-                main(style = "flex-direction: column;") {
-                    @if molecule_too_large {
-                        div(class = "emphasized-section") : "molecule does not fit onto canvas";
-                    }
-                    h2 : "ENTER MOLECULE TO LOOK UP";
-                    div(id = "canvas-wrapper") {
-                        canvas(id = "current");
-                        div(id = "clear", class = "canvas-button", style = "display: none;") {
-                            a(href = uri!(index(_, if radius.get() == 5 { None } else { Some(radius) }))) : "Clear";
-                        }
-                        div(id = "radius", class = "canvas-button") {
-                            a(id = "radius-down", href = uri!(index(m.clone(), radius.get().checked_sub(1).and_then(NonZero::new).filter(|new_radius| *new_radius != min_radius.max(NonZero::new(5).unwrap())))), style? = radius.get().checked_sub(1).and_then(NonZero::new).is_none_or(|new_radius| new_radius < min_radius).then_some("display: none;")) : "−";
-                            : " B=";
-                            : radius;
-                            : " ";
-                            a(id = "radius-up", href = uri!(index(m, radius.checked_add(1).filter(|new_radius| *new_radius != min_radius.max(NonZero::new(5).unwrap())))), style? = radius.checked_add(1).is_none().then_some("display: none;")) : "+";
-                        }
-                        div(id = "permalink", class = "canvas-button", style = "display: none;") {
-                            a : "Copy Permalink";
-                        }
-                    }
-                    div(id = "result", style = "display: none;");
-                    p(id = "error");
+                div(id = "radius", class = "canvas-button") {
+                    a(id = "radius-down", href = uri!(index(m.clone(), radius.get().checked_sub(1).and_then(NonZero::new).filter(|new_radius| *new_radius != min_radius.max(NonZero::new(5).unwrap())))), style? = radius.get().checked_sub(1).and_then(NonZero::new).is_none_or(|new_radius| new_radius < min_radius).then_some("display: none;")) : "−";
+                    : " B=";
+                    : radius;
+                    : " ";
+                    a(id = "radius-up", href = uri!(index(m, radius.checked_add(1).filter(|new_radius| *new_radius != min_radius.max(NonZero::new(5).unwrap())))), style? = radius.checked_add(1).is_none().then_some("display: none;")) : "+";
                 }
-                canvas(id = "next", style = "display: none;");
-                : footer();
-                script : RawHtml(format!("const radius = {radius};"));
-                script(src = static_url!("transmogrification.js"));
-                @if let Some(js_state) = js_state {
-                    script : RawHtml(format!("
-                        async function updateFromQuery() {{
-                            state = {0};
-                            nextState = state;
-                            redraw();
-                            await updateDownload();
-                        }}
-
-                        updateFromQuery();
-                    ", serde_json::to_value(js_state)?));
+                div(id = "permalink", class = "canvas-button", style = "display: none;") {
+                    a : "Copy Permalink";
                 }
             }
+            div(id = "result", style = "display: none;");
+            p(id = "error");
         }
-    })
+        canvas(id = "next", style = "display: none;");
+    }, html! {
+        script : RawHtml(format!("const radius = {radius};"));
+        script(src = static_url!("transmogrification.js"));
+        @if let Some(js_state) = js_state {
+            script : RawHtml(format!("
+                async function updateFromQuery() {{
+                    state = {0};
+                    nextState = state;
+                    redraw();
+                    await updateDownload();
+                }}
+
+                updateFromQuery();
+            ", serde_json::to_value(js_state)?));
+        }
+    }).await)
 }
 
 #[derive(Deserialize, Serialize)]
@@ -581,7 +696,7 @@ struct MoleculeResponseV2 {
 #[serde(rename_all = "camelCase")]
 struct Appearance {
     puzzle: &'static str,
-    url: Option<Url>,
+    url: rocket::http::uri::Origin<'static>,
     inout: InOut,
     name: Option<&'static str>,
 }
@@ -602,7 +717,7 @@ fn molecule_from_state_v2(state: Json<JsState>) -> Result<Json<MoleculeResponseV
                 .filter_map(|(puzzle, inout, name)| Some((puzzle, inout, name?)))
                 .map(|(puzzle, inout, name)| Appearance {
                     puzzle: puzzle.as_str(),
-                    url: puzzle.source().url(),
+                    url: uri!(puzzle::get(puzzle)),
                     name: Some(name),
                     inout,
                 })
@@ -637,7 +752,7 @@ fn molecule_from_state_v3(state: Json<JsState>) -> Result<Json<MoleculeResponseV
         if iter_molecule == molecule {
             response.appearances = appearances.into_iter().map(|(puzzle, inout, name)| Appearance {
                 puzzle: puzzle.as_str(),
-                url: puzzle.source().url(),
+                url: uri!(puzzle::get(puzzle)),
                 inout, name,
             }).collect();
             break
@@ -647,46 +762,28 @@ fn molecule_from_state_v3(state: Json<JsState>) -> Result<Json<MoleculeResponseV
 }
 
 #[rocket::get("/molecules")]
-fn molecules_list() -> RawHtml<String> {
-    html! {
-        : Doctype;
-        html {
-            head {
-                meta(charset = "utf-8");
-                title : "Opus Magnum Molecule Database";
-                meta(name = "viewport", content = "width=device-width, initial-scale=1, shrink-to-fit=no");
-                link(rel = "icon", href = static_url!("favicon.svg"));
-                link(rel = "stylesheet", href = static_url!("common.css"));
-                script(src = static_url!("common.js"));
-            }
-            body {
-                nav {
-                    a(class = "button", href = uri!(index(_, _))) : "Molecules by shape";
-                    a(class = "button selected") : "Molecules by name";
-                }
-                main {
-                    @for (idx, (molecule, appearances)) in molecules::molecules().into_iter().sorted_by_key(|(_, appearances)| {
-                        let mut names = appearances.iter().filter_map(|(_, _, name)| *name).collect_vec();
-                        names.sort_unstable();
-                        names.dedup();
-                        (names.is_empty(), names)
-                    }).enumerate() {
-                        div {
-                            h2 {
-                                @if appearances.iter().all(|(_, _, name)| name.is_none()) {
-                                    span(class = "muted") : "unnamed";
-                                } else {
-                                    : appearances.iter().filter_map(|(_, _, name)| *name).sorted_unstable().dedup().join("/");
-                                }
-                            }
-                            a(href = uri!(index(Some(FormMolecule(molecule.clone())), _))) : molecule.draw(&format!("product{idx}"));
+async fn molecules_list(config: &State<Config>, http_client: &State<reqwest::Client>) -> RawHtml<String> {
+    page(config, http_client, Tab::MoleculeList, false, "Opus Magnum Molecule Database", html! {
+        main {
+            @for (idx, (molecule, appearances)) in molecules::molecules().into_iter().sorted_by_key(|(_, appearances)| {
+                let mut names = appearances.iter().filter_map(|(_, _, name)| *name).collect_vec();
+                names.sort_unstable();
+                names.dedup();
+                (names.is_empty(), names)
+            }).enumerate() {
+                div {
+                    h3 {
+                        @if appearances.iter().all(|(_, _, name)| name.is_none()) {
+                            span(class = "muted") : "unnamed";
+                        } else {
+                            : appearances.iter().filter_map(|(_, _, name)| *name).sorted_unstable().dedup().join("/");
                         }
                     }
+                    a(href = uri!(index(Some(FormMolecule(molecule.clone())), _))) : molecule.draw(&format!("product{idx}"));
                 }
-                : footer();
             }
         }
-    }
+    }, html! {}).await
 }
 
 #[derive(clap::Parser)]
@@ -700,7 +797,7 @@ enum Subcommand {
     Validate,
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, rocket_util::Error)]
 enum Error {
     #[error(transparent)] GitCheckout(#[from] gix::clone::checkout::main_worktree::Error),
     #[error(transparent)] GitClone(#[from] gix::clone::Error),
@@ -710,8 +807,13 @@ enum Error {
     #[error(transparent)] GitFindRemote(#[from] gix::remote::find::existing::Error),
     #[error(transparent)] GitOpen(#[from] gix::open::Error),
     #[error(transparent)] GitPrepareFetch(#[from] gix::remote::fetch::prepare::Error),
+    #[error(transparent)] Http(#[from] reqwest::Error),
     #[error(transparent)] Rocket(#[from] rocket::Error),
+    #[error(transparent)] Url(#[from] url::ParseError),
     #[error(transparent)] Wheel(#[from] wheel::Error),
+    #[cfg(feature = "night")]
+    #[error("failed to locate config file")]
+    MissingConfig,
     #[cfg(any(target_os = "windows", target_os = "linux"))]
     #[error("failed to locate user folder")]
     MissingHomeDir,
@@ -763,7 +865,7 @@ async fn main(Args { subcommand }: Args) -> Result<(), Error> {
                         .main_worktree(gix::progress::Discard /*TODO show progress on command line? */, &gix::interrupt::IS_INTERRUPTED)?;
                 }
                 wheel::print_flush!("validating puzzles")?;
-                for puzzle in all::<Puzzle>() {
+                'puzzles: for puzzle in all::<Puzzle>() {
                     let omsim_rs::data::Puzzle { reagents, products, .. } = parse_puzzle(&match puzzle.source() {
                         puzzle::Source::Tutorial | puzzle::Source::OfficialNonLb | puzzle::Source::Computation { .. } | puzzle::Source::CritelliComputation { .. } => continue, // nothing to validate against
                         puzzle::Source::Critelli { url_part } => {
@@ -793,12 +895,14 @@ async fn main(Args { subcommand }: Args) -> Result<(), Error> {
                     let mut found_products = Vec::default();
                     for (molecule, puzzles) in molecules::molecules() {
                         if let Some((_, _, name)) = puzzles.iter().find(|(iter_puzzle, in_out, _)| *iter_puzzle == puzzle && in_out.is_reagent()) {
+                            if molecule.atoms.values().filter(|atom| **atom == Atom::Repeat).count() > 1 { continue 'puzzles } //TODO update omsim molecule decoder for polymers with multiple repeat atoms?
                             assert!(reagents.iter().any(|iter_molecule| iter_molecule.normalized() == molecule), "{} ({molecule:?}) not found in upstream version of {puzzle}", if let Some(name) = name { format!("reagent {name:?}") } else { format!("unnamed reagent") });
                             if !found_reagents.iter().any(|iter_molecule| *iter_molecule == molecule) {
                                 found_reagents.push(molecule.clone());
                             }
                         }
                         if let Some((_, _, name)) = puzzles.iter().find(|(iter_puzzle, in_out, _)| *iter_puzzle == puzzle && in_out.is_product()) {
+                            if molecule.atoms.values().filter(|atom| **atom == Atom::Repeat).count() > 1 { continue 'puzzles } //TODO update omsim molecule decoder for polymers with multiple repeat atoms?
                             assert!(products.iter().any(|iter_molecule| iter_molecule.normalized() == molecule), "{} ({molecule:?}) not found in upstream version of {puzzle}", if let Some(name) = name { format!("product {name:?}") } else { format!("unnamed product") });
                             if !found_products.iter().any(|iter_molecule| *iter_molecule == molecule) {
                                 found_products.push(molecule);
@@ -817,6 +921,22 @@ async fn main(Args { subcommand }: Args) -> Result<(), Error> {
             }
         }
     } else {
+        let config = Config::load().await?;
+        #[cfg(feature = "night")] {
+            let panic_config = config.clone();
+            let default_panic_hook = std::panic::take_hook();
+            std::panic::set_hook(Box::new(move |info| {
+                let _ = night_report_sync(&panic_config, &format!("/dev/dushanbe/mol/panic"), Some("thread panic"));
+                default_panic_hook(info)
+            }));
+        }
+        let http_client = reqwest::Client::builder()
+            .user_agent(concat!("MoleculeDb/", env!("CARGO_PKG_VERSION"), " (https://github.com/fenhl/molecule-db)"))
+            .timeout(Duration::from_secs(30))
+            .use_rustls_tls()
+            .hickory_dns(true)
+            .https_only(true)
+            .build()?;
         rocket::custom(rocket::Config {
             port: 24821,
             ..rocket::Config::default()
@@ -827,8 +947,12 @@ async fn main(Args { subcommand }: Args) -> Result<(), Error> {
             molecule_from_state_v2,
             molecule_from_state_v3,
             molecules_list,
+            puzzle::index,
+            puzzle::get,
         ])
         .mount("/static", FileServer::new("assets/static", rocket::fs::Options::None))
+        .manage(config)
+        .manage(http_client)
         .launch().await?;
     }
     Ok(())

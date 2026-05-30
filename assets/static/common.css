@@ -1,12 +1,13 @@
 html {
     min-height: 100%;
     overflow-y: scroll;
-    scrollbar-color: white #333344;
+    scrollbar-color: light-dark(black #bbbbcc, white #333344);
+    color-scheme: light dark;
 }
 body {
-    background: #333344;
+    background: light-dark(#bbbbcc, #333344);
     margin: 20px;
-    color: #eee;
+    color: light-dark(#111, #eee);
     font-family: 'Helvetica Neue', 'Helvetica', sans-serif;
     font-size: 16px;
     overflow: auto;
@@ -19,8 +20,22 @@ a {
     color: inherit;
     text-decoration: underline;
 }
+a:hover,
+.favicon {
+    text-decoration: none;
+}
+.favicon {
+    margin-inline-end: 4px;
+}
+.favicon,
+img.favicon,
+.favicon img {
+    width: 16px;
+    height: 16px;
+    vertical-align: center;
+}
 .emphasized-section {
-    background-color: #223;
+    background-color: light-dark(#ccd, #223);
     margin: 20px -20px;
     padding: 20px;
     border-radius: 8px;
@@ -39,36 +54,38 @@ canvas {
     user-select: none;
 }
 .molecule-canvas {
-    background-color: #223;
+    background-color: light-dark(#ccd, #223);
 }
 .canvas-button {
     position: absolute;
 }
 .button {
-    background-color: #445;
+    background-color: light-dark(#ccd, #445);
     text-decoration: none;
     padding: 8px;
+    border-inline-start: 1px solid light-dark(#aab, #223);
 }
 .button:nth-child(1) {
     border-start-start-radius: 8px;
     border-end-start-radius: 8px;
+    border-inline-start: none;
 }
 .button:nth-last-child(1) {
     border-start-end-radius: 8px;
     border-end-end-radius: 8px;
 }
 .canvas-button > a {
-    background-color: #2a2a3b;
+    background-color: light-dark(#c4c4d5, #2a2a3b);
     text-decoration: none;
     border-radius: 8px;
     padding: 8px;
 }
 .button:hover,
 .button.selected {
-    background-color: #223;
+    background-color: light-dark(#aab, #223);
 }
 .canvas-button > a:hover {
-    background-color: #282838;
+    background-color: light-dark(#d0d0e0, #282838);
 }
 .canvas-button#clear {
     top: 25px;
@@ -85,54 +102,21 @@ canvas {
 p#error {
     font-weight: bold;
 }
-h2 {
-    color: #eee;
+h3 {
+    color: light-dark(#111, #eee);
     font-size: 16px;
     margin: 8px;
     text-align: center;
 }
-main {
+main,
+.row {
     display: inline-flex;
     flex-wrap: wrap;
 }
-main > div {
+main > div,
+.row > div {
     margin: 0 10px;
 }
 .muted {
-    color: #bbbbc2;
-}
-
-@media (prefers-color-scheme: light) {
-    html {
-        scrollbar-color: black #bbbbcc;
-    }
-    body {
-        background: #bbbbcc;
-        color: #111;
-    }
-    .emphasized-section {
-        background-color: #ccd;
-    }
-    .molecule-canvas {
-        background-color: #ccd;
-    }
-    .button {
-        background-color: #ccd;
-    }
-    .canvas-button > a {
-        background-color: #c4c4d5;
-    }
-    .button:hover,
-    .button.selected {
-        background-color: #aab;
-    }
-    .canvas-button > a:hover {
-        background-color: #d0d0e0;
-    }
-    h2 {
-        color: #111;
-    }
-    .muted {
-        color: #445;
-    }
+    color: light-dark(#445, #bbbbc2);
 }

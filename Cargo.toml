@@ -26,6 +26,18 @@ unused_lifetimes = "deny"
 unused_qualifications = "deny"
 warnings = "deny"
 
+[features]
+night = [
+    "reqwest/blocking",
+    "reqwest/charset",
+    "reqwest/form",
+    "reqwest/gzip",
+    "reqwest/http2",
+    "reqwest/system-proxy",
+    "reqwest/zstd",
+    "wheel/reqwest",
+]
+
 [build-dependencies]
 gix = "0.83" # much slower than git2 but avoids a C dependency on openssl-sys
 itertools = "0.14"
@@ -43,7 +55,7 @@ itertools = "0.14"
 lazy-regex = "3"
 mimalloc = "0.1"
 omsim-rs = { git = "https://github.com/fenhl/omsim-rs" }
-reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider"] }
+reqwest = { version = "0.13", default-features = false, features = ["hickory-dns", "rustls-no-provider"] }
 rocket = { version = "0.5", features = ["json"] }
 rocket-util = { git = "https://github.com/fenhl/rocket-util" }
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
@@ -52,7 +64,8 @@ serde_json = "1"
 thiserror = "2"
 tokio = { version = "1", features = ["io-util", "net", "process"] }
 url = { version = "2", features = ["serde"] }
-wheel = { git = "https://github.com/fenhl/wheel", features = ["rocket"] }
+wheel = { git = "https://github.com/fenhl/wheel", features = ["rocket", "serde_json"] }
+xdg = "3"
 
 [target.'cfg(any(target_os = "windows", target_os = "linux"))'.dependencies]
 directories = "6"

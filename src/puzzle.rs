@@ -1,7 +1,37 @@
 use {
-    std::fmt,
-    enum_iterator::Sequence,
+    std::{
+        fmt,
+        num::NonZero,
+    },
+    enum_iterator::{
+        Sequence,
+        all,
+    },
+    rocket::{
+        State,
+        http::{
+            impl_from_uri_param_identity,
+            uri,
+        },
+        request::FromParam,
+        response::content::RawHtml,
+        uri,
+    },
+    rocket_util::{
+        ToHtml,
+        html,
+    },
     url::Url,
+    crate::{
+        Config,
+        Error,
+        MoleculeExt as _,
+        Tab,
+        external_link,
+        molecules,
+        page,
+        proto::FormMolecule,
+    },
 };
 
 pub(crate) enum Source {
@@ -62,6 +92,7 @@ fn official(zlbb_id: &'static str) -> Source {
     Source::Official { zlbb_id }
 }
 
+#[allow(unused)] // intermittently useful in case the leaderboard takes a while to update
 fn official_non_lb() -> Source {
     Source::OfficialNonLb
 }
@@ -104,6 +135,17 @@ macro_rules! puzzles {
                 }
             }
         }
+
+        impl<'a> FromParam<'a> for Puzzle {
+            type Error = ();
+
+            fn from_param(param: &'a str) -> Result<Self, Self::Error> {
+                match param {
+                    $(stringify!($variant) => Ok(Self::$variant),)*
+                    _ => Err(()),
+                }
+            }
+        }
     };
 }
 
@@ -117,6 +159,93 @@ impl fmt::Display for Puzzle {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.as_str().fmt(f)
     }
+}
+
+impl ToHtml for Puzzle {
+    fn to_html(&self) -> RawHtml<String> {
+        self.as_str().to_html()
+    }
+
+    fn push_html(&self, buf: &mut RawHtml<String>) {
+        self.as_str().push_html(buf)
+    }
+}
+
+impl uri::fmt::UriDisplay<uri::fmt::Path> for Puzzle {
+    fn fmt(&self, f: &mut uri::fmt::Formatter<'_, uri::fmt::Path>) -> fmt::Result {
+        f.write_value(self.url_part())
+    }
+}
+
+impl_from_uri_param_identity!([uri::fmt::Path] Puzzle);
+
+#[rocket::get("/puzzle")]
+pub(crate) async fn index(config: &State<Config>, http_client: &State<reqwest::Client>) -> RawHtml<String> {
+    page(config, http_client, Tab::Puzzles, false, "Puzzles — Opus Magnum Molecule Database", html! {
+        ul {
+            @for puzzle in all::<Puzzle>() {
+                li {
+                    a(href = uri!(get(puzzle))) : puzzle;
+                }
+            }
+        }
+    }, html! {}).await
+}
+
+#[rocket::get("/puzzle/<puzzle>")]
+pub(crate) async fn get(config: &State<Config>, http_client: &State<reqwest::Client>, puzzle: Puzzle) -> Result<RawHtml<String>, Error> {
+    Ok(page(config, http_client, Tab::Puzzles, true, html! {
+        : puzzle;
+        : " — Opus Magnum Molecule Database";
+    }, html! {
+        h1 : puzzle;
+        p {
+            @match puzzle.source() {
+                source @ (Source::Critelli { .. } | Source::CritelliComputation { .. } | Source::CritelliPrivate { .. }) => : external_link(config, http_client, source.url().unwrap().as_str(), "Event page").await?;
+                source @ (Source::Computation { .. } | Source::Other { .. } | Source::Zlbb { .. }) => : external_link(config, http_client, source.url().unwrap().as_str(), "Source").await?;
+                Source::Official { .. } | Source::OfficialNonLb => : "official puzzle";
+                Source::Tutorial => : "tutorial puzzle";
+            }
+        }
+        h2 : "Reagents";
+        div(class = "row") {
+            @for (idx, (molecule, name)) in molecules::molecules()
+                .into_iter()
+                .flat_map(|(molecule, appearances)| appearances.into_iter().filter_map(move |(iter_puzzle, in_out, name)| (iter_puzzle == puzzle && in_out.is_reagent()).then(|| (molecule.clone(), name))))
+                .enumerate()
+            {
+                div {
+                    h3 {
+                        @if let Some(name) = name {
+                            : name;
+                        } else {
+                            span(class = "muted") : "unnamed";
+                        }
+                    }
+                    a(href = uri!(crate::index(Some(FormMolecule(molecule.clone())), _))) : molecule.draw(&format!("reagent{idx}"));
+                }
+            }
+        }
+        h2 : "Products";
+        div(class = "row") {
+            @for (idx, (molecule, name)) in molecules::molecules()
+                .into_iter()
+                .flat_map(|(molecule, appearances)| appearances.into_iter().filter_map(move |(iter_puzzle, in_out, name)| (iter_puzzle == puzzle && in_out.is_product()).then(|| (molecule.clone(), name))))
+                .enumerate()
+            {
+                div {
+                    h3 {
+                        @if let Some(name) = name {
+                            : name;
+                        } else {
+                            span(class = "muted") : "unnamed";
+                        }
+                    }
+                    a(href = uri!(crate::index(Some(FormMolecule(molecule.clone())), _))) : molecule.draw(&format!("product{idx}"));
+                }
+            }
+        }
+    }, html! {}).await)
 }
 
 puzzles! {
@@ -147,6 +276,7 @@ puzzles! {
     BicrystalTransceiver => "Bicrystal Transceiver", critelli("OM2023_W6_BicrystalTransceiver"),
     BiosteelFilament => "Biosteel Filament", critelli("OM2023_W4_BiosteelFilament"),
     BlackPowder => "Black Powder", critelli("OM2023Weeklies_BlackPowder"),
+    BlastCordage => "Blast Cordage", official("P299"),
     BloodStanchingPowder => "Blood-Stanching Powder", official("P087"),
     BlueVitriol => "Blue Vitriol (2024 tournament)", critelli("bb94e99e5b9f4d14791f50e953e6f2bb"),
     BlueVitriolJournal => "Blue Vitriol (Journal issue XI)", official("P241"),
@@ -191,6 +321,7 @@ puzzles! {
     DentalAmalgamJournal => "Dental Amalgam (Journal issue XII)", official("P252"),
     DestabilizedNature => "Destabilized Nature", critelli("683142751f1988e34bb824ac9302ed20"),
     DoYouRemember => "Do You Remember", zlbb("w1698787731", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/"),
+    DurableStitching => "Durable Stitching", official("P296"),
     DwarvenFireWine => "Dwarven Fire Wine", zlbb("w1698786588", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/"),
     DyeHard => "Dye Hard", critelli("OM2023Weeklies_DyeHard"),
     ElectrumSeparation => "Electrum Separation", official("P103"),
@@ -200,7 +331,7 @@ puzzles! {
     EmbalmingFluid => "Embalming Fluid", official("P108"),
     EmergencyAntidote => "Emergency Antidote", zlbb("w2450512232", "https://drive.google.com/drive/folders/1SL0WExUVLu6_xsvZCA9z29PH6RuFBrBd"),
     EndGame => "End Game", critelli("OM2023_W0_EndGame"),
-    EndurancePotion => "Endurance Potion", official_non_lb(), //TODO(https://github.com/F43nd1r/zachtronics-leaderboard-bot/pull/423)
+    EndurancePotion => "Endurance Potion", official("P293"),
     EphemeralMatrix => "Ephemeral Matrix", critelli("5a5504a1f72574d23012a6458d1a29b1"),
     EssenceOfCitrus => "Essence of Citrus", official("P257"),
     EvilOre => "Evil Ore", zlbb("w1698788220", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/"),
@@ -229,10 +360,11 @@ puzzles! {
     GeneralAnaesthetic => "General Anaesthetic", official("P086"),
     GildingWax => "Gilding Wax", official("P279"),
     GlitraPaint => "Glitra Paint", official("P275"),
+    GlorpsConstruct => "Glorp's Construct", critelli("b721b7ba8e14db667d5ea374eaca9a9e"),
+    GoldenThread => "Golden Thread", official("P037"),
     GreenVitriol => "Green Vitriol (2021 weeklies)", zlbb("w2539581468", "https://discord.com/channels/278707932089155584/296373951800541186/859612178902286376"),
     GreenVitriolJournal => "Green Vitriol (Journal issue XI)", official("P240"),
     GrenadePellet => "Grenade Pellet", official("P259"),
-    GoldenThread => "Golden Thread", official("P037"),
     Gunmetal => "Gunmetal", official("P272"),
     HabitabilityDetector => "Habitability Detector", critelli_computation("OM2023_W8_HabitabilityDetector"),
     HairProduct => "Hair Product", official("P016"),
@@ -243,11 +375,11 @@ puzzles! {
     HexstabilizedTeulingsMors => "Hexstabilized Teuling's Mors", critelli("OM2023Weeklies_HexstabilizedTeulingsMors"),
     HighExplosive => "High Explosive", official("P271"),
     HighGlossFinish => "High Gloss Finish", zlbb("w2501728349", "https://reddit.com/r/opus_magnum/comments/fhui7x/week_7_high_gloss_finish/"),
-    HydroponicSolution => "Hydroponic Solution", critelli("OM2023_W3_HydroponicSolution"),
-    HyperVolatileGas => "Hyper-volatile Gas", official("P106"),
     HornSilver => "Horn Silver", zlbb("w2513871683", "https://discord.com/channels/278707932089155584/296373951800541186/849437821918904350"),
     HotIce => "Hot Ice", critelli("OM2022Weeklies_HotIce"),
     HydrophobicWater => "Hydrophobic Water", critelli("om2025week1_Hydrophobic_Water"),
+    HydroponicSolution => "Hydroponic Solution", critelli("OM2023_W3_HydroponicSolution"),
+    HyperVolatileGas => "Hyper-volatile Gas", official("P106"),
     IcelandicLavaSalt => "Icelandic Lava Salt", critelli("952a099fce7b49281d4b95f0f37dae8e"),
     IgnitionCord => "Ignition Cord", critelli("OM2022Weeklies_IgnitionCord"),
     ImmortalFilament => "Immortal Filament", critelli("483f5c168a293fbed5aaf12990be50cf"),
@@ -258,7 +390,7 @@ puzzles! {
     InstantMirrorCoat => "Instant Mirror Coat", critelli("OM2024Weeklies_InstantMirrorCoat"),
     IntumescentLead => "Intumescent Lead", critelli("fc37c3c4183d77bb17bf827ae66c53d7"),
     InvariantMetal => "Invariant Metal", official("P215"),
-    InvigoratingTonic => "Invigorating Tonic", official_non_lb(), //TODO(https://github.com/F43nd1r/zachtronics-leaderboard-bot/pull/423)
+    InvigoratingTonic => "Invigorating Tonic", official("P291"),
     InvisibleInk => "Invisible Ink", official("P032"),
     JewelBox => "Jewel Box", critelli("OM2025Weeklies1_JewelBox"),
     Lambent29 => "Lambent II/IX", official("P058"),
@@ -299,6 +431,7 @@ puzzles! {
     MiraculousAutosalt => "Miraculous Autosalt", zlbb("w1698787102", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/"),
     MiraculousDentifrice => "Miraculous Dentifrice", official("P266"),
     MirrorPolish => "Mirror Polish", official("P269"),
+    MirroringAmalgam => "Mirroring Amalgam", official("P298"),
     MistOfDousing => "Mist of Dousing", zlbb("w2450512021", "https://drive.google.com/drive/folders/1JX9JEdzXfFgn1-z4Yno_oMjSHHg8eGxE"),
     MistOfGlaciation => "Mist of Glaciation", official("P283"),
     MistOfHallucination => "Mist of Hallucination", official("P038"),
@@ -313,7 +446,6 @@ puzzles! {
     OrangeVitriol => "Orange Vitriol", critelli("547de89828787801144566f080b0b213"),
     OrnamentalPlating => "Ornamental Plating", critelli("OM2024Weeklies_OrnamentalPlating"),
     Overloaded => "Overloaded", zlbb("w2501728107", "https://reddit.com/r/opus_magnum/comments/f7674d/week_5_overloaded/"),
-    PousseCafe => "Pousse-Café", critelli("f883eb7701f420e1b1960eabe37b7fc1"),
     PalatableTissue => "Palatable Tissue", critelli("OM2024Weeklies_PalatableTissue"),
     Panacea => "Panacea", zlbb("w1698789743", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/"),
     PanaceaToPoison => "Panacea to Poison", zlbb("w2450511665", "https://drive.google.com/drive/folders/1-Ky7fk653U6Zr9bPgEzGDtI3QX7vVJlE"),
@@ -327,6 +459,7 @@ puzzles! {
     Plastic => "Plastic", critelli("ac6ab9dc43b0ac7ad9277c25ed5375e1"),
     PotentPainkillers => "Potent Painkillers", critelli("Week_7_PotentPainkillers"),
     PotentPotables => "Potent Potables", zlbb("w2501727721", "https://reddit.com/r/opus_magnum/comments/et5lyo/tournament_week_1_potent_potables/"),
+    PousseCafe => "Pousse-Café", critelli("f883eb7701f420e1b1960eabe37b7fc1"),
     PrecisionMachineOil => "Precision Machine Oil", official("P012"),
     PreservativeSalt => "Preservative Salt", official("P060"),
     PreservingWax => "Preserving Wax", official("P267"),
@@ -334,7 +467,7 @@ puzzles! {
     ProofOfCompleteness => "Proof of Completeness", official("P069"),
     ProspectorsSolvent => "Prospector's Solvent", official("P261"),
     PurifiedGold => "Purified Gold", official("P036"),
-    QuickeningCordial => "Quickening Cordial", official_non_lb(), //TODO(https://github.com/F43nd1r/zachtronics-leaderboard-bot/pull/423)
+    QuickeningCordial => "Quickening Cordial", official("P290"),
     QuietHours => "Quiet Hours", critelli("ff6feb9ee69a0450a117eb2a7c7de784"),
     QuintessentialAerogel => "Quintessential Aerogel", critelli("OM2022Weeklies_QuintAerogel"),
     QuintessentialCatalyst => "Quintessential Catalyst", other("https://discord.com/channels/278707932089155584/296373951800541186/877363315687436349"),
@@ -347,8 +480,8 @@ puzzles! {
     RavarisRoad => "Ravari's Road", critelli("OM2025Weeklies7_RavarisRoad"),
     RavarisWheel => "Ravari's Wheel", official("P064"),
     ReactiveCinnabar => "Reactive Cinnabar", official("P056"),
-    ReactiveLead => "Reactive Lead", official("P210"),
     ReactiveGold => "Reactive Gold", official("P095"),
+    ReactiveLead => "Reactive Lead", official("P210"),
     RealgarSeparation => "Realgar Separation", official("P264"),
     RecipeForDisaster => "Recipe for Disaster", critelli("OM2025Weeklies10_RecipeForDisaster"),
     ReclaimedGold => "Reclaimed Gold", official("P254"),
@@ -378,6 +511,7 @@ puzzles! {
     SelfPressurizingGas => "Self-Pressurizing Gas", critelli("OM2023_W1_SelfPressurizingGas"),
     SeptstabilizedSalt => "Septstabilized Salt", critelli("9c14e48d17cebae4165828037b56cc7c"),
     ServinsWheel => "Servin's Wheel", critelli("OM2022Weeklies_ServinsWheel"),
+    ShimmeringChain => "Shimmering Chain", official("P295"),
     SigmarsGarden => "Sigmar's Garden", critelli("af2e9ada2b4a888463d1aef200c58eb9"),
     SilverAppleOfDiscord => "Silver Apple of Discord", critelli("3e07b2ebbabd5ea7e9b87f8cd35d679f"),
     SilverCaustic => "Silver Caustic", official("P057"),
@@ -401,14 +535,14 @@ puzzles! {
     StainRemover => "Stain Remover", official("P034"),
     StaminaPotion => "Stamina Potion", official("P015"),
     SteelWool => "Steel Wool", official("P268"),
-    StormSensingPotion => "Storm-Sensing Potion", official_non_lb(), //TODO(https://github.com/F43nd1r/zachtronics-leaderboard-bot/pull/423)
+    StormSensingPotion => "Storm-Sensing Potion", official("P294"),
     SuperconductiveCopper => "Superconductive Copper", other("https://discord.com/channels/278707932089155584/296373951800541186/854533289816358922"),
     SurrenderFlare => "Surrender Flare", official("P022"),
     SurveyingMagnet => "Surveying Magnet", official("P262"),
     SuspiciouslyStableSubstance => "Suspiciously Stable Substance", critelli("OM2022Weeklies_SSS"),
     SutureThread => "Suture Thread", official("P085"),
-    SweeperRod => "Sweeper Rod", critelli("OM2022Weeklies_SweeperRod"),
     SwampFiber => "Swamp Fiber", zlbb("w2501727889", "https://reddit.com/r/opus_magnum/comments/f05mp5/week_3_swamp_fiber/"),
+    SweeperRod => "Sweeper Rod", critelli("OM2022Weeklies_SweeperRod"),
     SwordAlloy => "Sword Alloy", official("P033"),
     SynthesisViaAlcohol => "Synthesis via Alcohol", official("P071"),
     SyntheticMalachite => "Synthetic Malachite", official("P109"),
@@ -426,7 +560,7 @@ puzzles! {
     Touchstone => "Touchstone (2024 tournament)", critelli("6f37903681423b320da82fb57900291d"),
     TouchstoneJournal => "Touchstone (Journal issue X)", official("P245"),
     Transmutation110 => "Transmutation CX", critelli_computation("Week_9_TransmutationCX"),
-    UmbralMascara => "Umbral Mascara", official_non_lb(), //TODO(https://github.com/F43nd1r/zachtronics-leaderboard-bot/pull/423)
+    UmbralMascara => "Umbral Mascara", official("P292"),
     UniversalCompound => "Universal Compound", official("P072"),
     UniversalSolvent => "Universal Solvent", official("P043"),
     UnstableCompound => "Unstable Compound", official("P040"),
@@ -460,4 +594,17 @@ puzzles! {
     WheelInversion => "Wheel Inversion", computation("https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/"),
     WheelRepresentation => "Wheel Representation", official("P070"),
     WireFormingAndUnforming => "Wire Forming and Unforming", zlbb("w1698784331", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/"),
+    XylemSubstitute => "Xylem Substitute", official("P297"),
+}
+
+#[test]
+fn test_puzzles_sorted() -> std::io::Result<()> {
+    use itertools::Itertools as _;
+
+    if !all::<Puzzle>().is_sorted_by_key(|puzzle| puzzle.as_str()) {
+        std::fs::write("actual.txt", all::<Puzzle>().join("\n"))?;
+        std::fs::write("sorted.txt", all::<Puzzle>().sorted_by_key(|puzzle| puzzle.as_str()).join("\n"))?;
+        panic!("puzzles not sorted by name")
+    }
+    Ok(())
 }

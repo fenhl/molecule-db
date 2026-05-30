@@ -53,7 +53,26 @@ enum Error {
     },
 }
 
-#[wheel::main]
+impl wheel::CustomExit for Error {
+    fn exit(self, cmd_name: &'static str) -> ! {
+        match self {
+            Self::Wheel(wheel::Error::CommandExit { name, output }) => {
+                eprintln!("{cmd_name}: command `{name}` exited with {}", output.status);
+                eprintln!("stdout:");
+                eprintln!("{}", String::from_utf8_lossy(&output.stdout));
+                eprintln!("stderr:");
+                eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+            }
+            _ => {
+                eprintln!("{cmd_name}: {self}");
+                eprintln!("debug info: {self:?}");
+            }
+        }
+        std::process::exit(1)
+    }
+}
+
+#[wheel::main(custom_exit)]
 async fn main() -> Result<(), Error> {
     for (name, value) in toml::from_slice::<CargoToml>(&Command::new("git").arg("show").arg(":Cargo.toml").stdout(Stdio::piped()).check("git show").await?.stdout)?.dependencies {
         if let Some(version) = match value {
