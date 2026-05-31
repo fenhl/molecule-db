@@ -46,18 +46,22 @@ thiserror = "2"
 [dependencies]
 async-proto = "0.26"
 base64 = "0.22"
+bitvec = { version = "1", default-features = false, features = ["atomic"] }
 clap = { version = "4", features = ["derive"] }
 collect-mac = "0.1"
 enum-iterator = "2"
 gix = { version = "0.83", features = ["blocking-http-transport-reqwest"] }
 gophermap = "0.1"
+itermore = { version = "0.8", features = ["array_combinations_with_reps", "array_windows"] }
 itertools = "0.14"
 lazy-regex = "3"
 mimalloc = "0.1"
 omsim-rs = { git = "https://github.com/fenhl/omsim-rs" }
+rand = "0.10"
 reqwest = { version = "0.13", default-features = false, features = ["hickory-dns", "rustls-no-provider"] }
 rocket = { version = "0.5", features = ["json"] }
 rocket-util = { git = "https://github.com/fenhl/rocket-util" }
+roman-numerals = "0.4"
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

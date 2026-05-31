@@ -6,7 +6,7 @@ The database is up to date as of [Glorp's Construct](https://events.critelli.tec
 
 # Usage
 
-The database frontend can be found at <https://mol.fenhl.net/> — you can either draw the atoms and bonds in the molecule builder tool to look up the names and appearances of the drawn molecule, or click “Molecules by name” above the builder to look up molecule shapes by name.
+The database frontend can be found at <https://mol.fenhl.net/> — you can either draw the atoms and bonds in the molecule input tool to look up the names and appearances of the drawn molecule, or click on one of the other tabs above the input to look up molecule shapes by name or puzzle.
 
 # Credits
 

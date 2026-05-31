@@ -113,17 +113,12 @@ enum InOut {
 }
 
 impl InOut {
-    fn is_reagent(&self) -> bool {
-        match self {
-            Self::Product => false,
-            Self::Reagent | Self::Both => true,
-        }
-    }
-
-    fn is_product(&self) -> bool {
-        match self {
-            Self::Reagent => false,
-            Self::Product | Self::Both => true,
+    fn new(i: u8, o: u8) -> Self {
+        match (i == 0, o == 0) {
+            (false, false) => Self::Both,
+            (false, true) => Self::Reagent,
+            (true, false) => Self::Product,
+            (true, true) => panic!(),
         }
     }
 }
@@ -675,7 +670,7 @@ fn molecule_from_state_v1(state: Json<JsState>) -> Result<Json<MoleculeResponseV
     for (iter_molecule, appearances) in molecules::molecules() {
         if iter_molecule == molecule {
             response.appearances = appearances.into_iter()
-                .filter_map(|(puzzle, inout, name)| Some((puzzle, inout, name?)))
+                .filter_map(|(puzzle, i, o, name)| Some((puzzle, InOut::new(i, o), name?)))
                 .map(|(puzzle, inout, name)| (format!("{puzzle}{}", if puzzle.is_custom() { "*" } else { "" }), inout, name))
                 .collect();
             break
@@ -687,14 +682,14 @@ fn molecule_from_state_v1(state: Json<JsState>) -> Result<Json<MoleculeResponseV
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct MoleculeResponseV2 {
-    appearances: Vec<Appearance>,
+    appearances: Vec<AppearanceV2>,
     permalink: String,
     rust_code: String,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct Appearance {
+struct AppearanceV2 {
     puzzle: &'static str,
     url: rocket::http::uri::Origin<'static>,
     inout: InOut,
@@ -714,8 +709,8 @@ fn molecule_from_state_v2(state: Json<JsState>) -> Result<Json<MoleculeResponseV
     for (iter_molecule, appearances) in molecules::molecules() {
         if iter_molecule == molecule {
             response.appearances = appearances.into_iter()
-                .filter_map(|(puzzle, inout, name)| Some((puzzle, inout, name?)))
-                .map(|(puzzle, inout, name)| Appearance {
+                .filter_map(|(puzzle, i, o, name)| Some((puzzle, InOut::new(i, o), name?)))
+                .map(|(puzzle, inout, name)| AppearanceV2 {
                     puzzle: puzzle.as_str(),
                     url: uri!(puzzle::get(puzzle)),
                     name: Some(name),
@@ -731,7 +726,7 @@ fn molecule_from_state_v2(state: Json<JsState>) -> Result<Json<MoleculeResponseV
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct MoleculeResponseV3 {
-    appearances: Vec<Appearance>,
+    appearances: Vec<AppearanceV2>,
     min_radius: NonZero<u8>,
     permalink: String,
     rust_code: String,
@@ -750,10 +745,54 @@ fn molecule_from_state_v3(state: Json<JsState>) -> Result<Json<MoleculeResponseV
     };
     for (iter_molecule, appearances) in molecules::molecules() {
         if iter_molecule == molecule {
-            response.appearances = appearances.into_iter().map(|(puzzle, inout, name)| Appearance {
+            response.appearances = appearances.into_iter().map(|(puzzle, i, o, name)| AppearanceV2 {
                 puzzle: puzzle.as_str(),
                 url: uri!(puzzle::get(puzzle)),
-                inout, name,
+                inout: InOut::new(i, o),
+                name,
+            }).collect();
+            break
+        }
+    }
+    Ok(Json(response))
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MoleculeResponseV4 {
+    appearances: Vec<AppearanceV4>,
+    min_radius: NonZero<u8>,
+    permalink: String,
+    rust_code: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AppearanceV4 {
+    puzzle: &'static str,
+    url: rocket::http::uri::Origin<'static>,
+    i: u8,
+    o: u8,
+    name: Option<&'static str>,
+}
+
+#[rocket::post("/api/v4/molecule-from-state", format = "json", data = "<state>")]
+fn molecule_from_state_v4(state: Json<JsState>) -> Result<Json<MoleculeResponseV4>, Status> {
+    let molecule = Molecule::try_from(state.0).map_err(|()| Status::BadRequest)?;
+    let mut permalink = Vec::default();
+    FormMolecule(molecule.clone()).write_sync(&mut permalink).map_err(|_| Status::BadRequest)?;
+    let mut response = MoleculeResponseV4 {
+        appearances: Vec::default(),
+        min_radius: molecule.min_radius().map_err(|_| Status::BadRequest)?,
+        permalink: BASE64.encode(permalink),
+        rust_code: format!("{:?}", Unparse(&molecule)),
+    };
+    for (iter_molecule, appearances) in molecules::molecules() {
+        if iter_molecule == molecule {
+            response.appearances = appearances.into_iter().map(|(puzzle, i, o, name)| AppearanceV4 {
+                puzzle: puzzle.as_str(),
+                url: uri!(puzzle::get(puzzle)),
+                i, o, name,
             }).collect();
             break
         }
@@ -766,17 +805,17 @@ async fn molecules_list(config: &State<Config>, http_client: &State<reqwest::Cli
     page(config, http_client, Tab::MoleculeList, false, "Opus Magnum Molecule Database", html! {
         main {
             @for (idx, (molecule, appearances)) in molecules::molecules().into_iter().sorted_by_key(|(_, appearances)| {
-                let mut names = appearances.iter().filter_map(|(_, _, name)| *name).collect_vec();
+                let mut names = appearances.iter().filter_map(|(_, _, _, name)| *name).collect_vec();
                 names.sort_unstable();
                 names.dedup();
                 (names.is_empty(), names)
             }).enumerate() {
                 div {
                     h3 {
-                        @if appearances.iter().all(|(_, _, name)| name.is_none()) {
+                        @if appearances.iter().all(|(_, _, _, name)| name.is_none()) {
                             span(class = "muted") : "unnamed";
                         } else {
-                            : appearances.iter().filter_map(|(_, _, name)| *name).sorted_unstable().dedup().join("/");
+                            : appearances.iter().filter_map(|(_, _, _, name)| *name).sorted_unstable().dedup().join("/");
                         }
                     }
                     a(href = uri!(index(Some(FormMolecule(molecule.clone())), _))) : molecule.draw(&format!("product{idx}"));
@@ -867,7 +906,7 @@ async fn main(Args { subcommand }: Args) -> Result<(), Error> {
                 wheel::print_flush!("validating puzzles")?;
                 'puzzles: for puzzle in all::<Puzzle>() {
                     let omsim_rs::data::Puzzle { reagents, products, .. } = parse_puzzle(&match puzzle.source() {
-                        puzzle::Source::Tutorial | puzzle::Source::OfficialNonLb | puzzle::Source::Computation { .. } | puzzle::Source::CritelliComputation { .. } => continue, // nothing to validate against
+                        puzzle::Source::Tutorial | puzzle::Source::OfficialNonLb { .. } | puzzle::Source::Computation { .. } | puzzle::Source::CritelliComputation { .. } => continue, // nothing to validate against
                         puzzle::Source::Critelli { url_part } => {
                             let (host, port, selector) = critelli_puzzles.remove(url_part).expect(&format!("missing critelli puzzle: {url_part}"));
                             let mut tcp_client = TcpStream::connect((host, port)).await.at_unknown()?;
@@ -888,20 +927,20 @@ async fn main(Args { subcommand }: Args) -> Result<(), Error> {
                             tcp_client.read_to_end(&mut buf).await.at_unknown()?;
                             buf
                         }
-                        puzzle::Source::Official { zlbb_id } | puzzle::Source::Zlbb { zlbb_id, .. } => fs::read(zlbb_path.join(format!("src/main/resources/om/puzzle/{zlbb_id}.puzzle"))).await?,
+                        puzzle::Source::Official { zlbb_id, .. } | puzzle::Source::Zlbb { zlbb_id, .. } => fs::read(zlbb_path.join(format!("src/main/resources/om/puzzle/{zlbb_id}.puzzle"))).await?,
                         puzzle::Source::Other { .. } => fs::read(format!("assets/puzzle/{}.puzzle", puzzle.url_part())).await?,
                     }).map_err(|e| Error::ParsePuzzle(e))?;
                     let mut found_reagents = Vec::default();
                     let mut found_products = Vec::default();
                     for (molecule, puzzles) in molecules::molecules() {
-                        if let Some((_, _, name)) = puzzles.iter().find(|(iter_puzzle, in_out, _)| *iter_puzzle == puzzle && in_out.is_reagent()) {
+                        if let Some((_, _, _, name)) = puzzles.iter().find(|(iter_puzzle, i, _, _)| *iter_puzzle == puzzle && *i > 0) {
                             if molecule.atoms.values().filter(|atom| **atom == Atom::Repeat).count() > 1 { continue 'puzzles } //TODO update omsim molecule decoder for polymers with multiple repeat atoms?
                             assert!(reagents.iter().any(|iter_molecule| iter_molecule.normalized() == molecule), "{} ({molecule:?}) not found in upstream version of {puzzle}", if let Some(name) = name { format!("reagent {name:?}") } else { format!("unnamed reagent") });
                             if !found_reagents.iter().any(|iter_molecule| *iter_molecule == molecule) {
                                 found_reagents.push(molecule.clone());
                             }
                         }
-                        if let Some((_, _, name)) = puzzles.iter().find(|(iter_puzzle, in_out, _)| *iter_puzzle == puzzle && in_out.is_product()) {
+                        if let Some((_, _, _, name)) = puzzles.iter().find(|(iter_puzzle, _, o, _)| *iter_puzzle == puzzle && *o > 0) {
                             if molecule.atoms.values().filter(|atom| **atom == Atom::Repeat).count() > 1 { continue 'puzzles } //TODO update omsim molecule decoder for polymers with multiple repeat atoms?
                             assert!(products.iter().any(|iter_molecule| iter_molecule.normalized() == molecule), "{} ({molecule:?}) not found in upstream version of {puzzle}", if let Some(name) = name { format!("product {name:?}") } else { format!("unnamed product") });
                             if !found_products.iter().any(|iter_molecule| *iter_molecule == molecule) {
@@ -946,6 +985,7 @@ async fn main(Args { subcommand }: Args) -> Result<(), Error> {
             molecule_from_state_v1,
             molecule_from_state_v2,
             molecule_from_state_v3,
+            molecule_from_state_v4,
             molecules_list,
             puzzle::index,
             puzzle::get,

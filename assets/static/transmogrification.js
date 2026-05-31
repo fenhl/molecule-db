@@ -627,6 +627,97 @@ function stateForEnumerationIndex(index) {
         throw 'number out of range';
     }
 }
+function displayInOut(i, o) {
+    const inOut = document.createElement('em');
+    inOut.setAttribute('class', 'muted');
+    switch (i) {
+        case 0: {
+            switch (o) {
+                case 0: {
+                    throw 'input and output counts are both 0';
+                }
+                case 1: {
+                    inOut.setAttribute('title', 'appears as product');
+                    break;
+                }
+                case 2: {
+                    inOut.setAttribute('title', 'appears twice as product');
+                    break;
+                }
+                default: {
+                    inOut.setAttribute('title', 'appears ' + o + ' times as product');
+                    break;
+                }
+            }
+            break;
+        }
+        case 1: {
+            switch (o) {
+                case 0: {
+                    inOut.setAttribute('title', 'appears as reagent');
+                    break;
+                }
+                case 1: {
+                    inOut.setAttribute('title', 'appears as both reagent and product');
+                    break;
+                }
+                case 2: {
+                    inOut.setAttribute('title', 'appears once as reagent and twice as product');
+                    break;
+                }
+                default: {
+                    inOut.setAttribute('title', 'appears once as reagent and ' + o + ' times as product');
+                    break;
+                }
+            }
+            break;
+        }
+        case 2: {
+            switch (o) {
+                case 0: {
+                    inOut.setAttribute('title', 'appears twice as reagent');
+                    break;
+                }
+                case 1: {
+                    inOut.setAttribute('title', 'appears twice as reagent and once as product');
+                    break;
+                }
+                case 2: {
+                    inOut.setAttribute('title', 'appears twice as reagent and twice as product');
+                    break;
+                }
+                default: {
+                    inOut.setAttribute('title', 'appears twice as reagent and ' + o + ' times as product');
+                    break;
+                }
+            }
+            break;
+        }
+        default: {
+            switch (o) {
+                case 0: {
+                    inOut.setAttribute('title', 'appears ' + i + ' times as reagent');
+                    break;
+                }
+                case 1: {
+                    inOut.setAttribute('title', 'appears ' + i + ' times as reagent and once as product');
+                    break;
+                }
+                case 2: {
+                    inOut.setAttribute('title', 'appears ' + i + ' times as reagent and twice as product');
+                    break;
+                }
+                default: {
+                    inOut.setAttribute('title', 'appears ' + i + ' times as reagent and ' + o + ' times as product');
+                    break;
+                }
+            }
+            break;
+        }
+    }
+    inOut.appendChild(document.createTextNode(' ' + 'r'.repeat(i) + 'p'.repeat(o)));
+    return inOut;
+}
 async function updateDownload() {
     document.getElementById('permalink').onclick = () => {};
     const validationResult = validateState(state);
@@ -649,7 +740,7 @@ async function updateDownload() {
         document.getElementById('result').style.display = 'none';
         return;
     } else {
-        let response = await fetch(new Request('/api/v3/molecule-from-state', {
+        let response = await fetch(new Request('/api/v4/molecule-from-state', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -695,29 +786,7 @@ async function updateDownload() {
                         puzzle.appendChild(document.createTextNode(val.puzzle));
                     }
                     appearances.appendChild(puzzle);
-                    const inOut = document.createElement('em');
-                    inOut.setAttribute('class', 'muted');
-                    switch (val.inout) {
-                        case 'Reagent': {
-                            inOut.setAttribute('title', 'appears as reagent');
-                            inOut.appendChild(document.createTextNode(' r'));
-                            break;
-                        }
-                        case 'Product': {
-                            inOut.setAttribute('title', 'appears as product');
-                            inOut.appendChild(document.createTextNode(' p'));
-                            break;
-                        }
-                        case 'Both': {
-                            inOut.setAttribute('title', 'appears as both reagent and product');
-                            inOut.appendChild(document.createTextNode(' rp'));
-                            break;
-                        }
-                        default: {
-                            throw 'unknown InOut kind';
-                        }
-                    }
-                    appearances.appendChild(inOut);
+                    appearances.appendChild(displayInOut(val.i, val.o));
                 });
                 document.getElementById('result').replaceChildren(message, appearances);
             } else {
@@ -740,29 +809,7 @@ async function updateDownload() {
                             puzzle.appendChild(document.createTextNode(val.puzzle));
                         }
                         appearances.appendChild(puzzle);
-                        const inOut = document.createElement('em');
-                        inOut.setAttribute('class', 'muted');
-                        switch (val.inout) {
-                            case 'Reagent': {
-                                inOut.setAttribute('title', 'appears as reagent');
-                                inOut.appendChild(document.createTextNode(' r'));
-                                break;
-                            }
-                            case 'Product': {
-                                inOut.setAttribute('title', 'appears as product');
-                                inOut.appendChild(document.createTextNode(' p'));
-                                break;
-                            }
-                            case 'Both': {
-                                inOut.setAttribute('title', 'appears as both reagent and product');
-                                inOut.appendChild(document.createTextNode(' rp'));
-                                break;
-                            }
-                            default: {
-                                throw 'unknown InOut kind';
-                            }
-                        }
-                        appearances.appendChild(inOut);
+                        appearances.appendChild(displayInOut(val.i, val.o));
                     });
                     if (data.appearances.some(val => val.name === null)) {
                         const unnamedAppearances = document.createElement('p');
@@ -784,29 +831,7 @@ async function updateDownload() {
                                 puzzle.appendChild(document.createTextNode(val.puzzle));
                             }
                             unnamedAppearances.appendChild(puzzle);
-                            const inOut = document.createElement('em');
-                            inOut.setAttribute('class', 'muted');
-                            switch (val.inout) {
-                                case 'Reagent': {
-                                    inOut.setAttribute('title', 'appears as reagent');
-                                    inOut.appendChild(document.createTextNode(' r'));
-                                    break;
-                                }
-                                case 'Product': {
-                                    inOut.setAttribute('title', 'appears as product');
-                                    inOut.appendChild(document.createTextNode(' p'));
-                                    break;
-                                }
-                                case 'Both': {
-                                    inOut.setAttribute('title', 'appears as both reagent and product');
-                                    inOut.appendChild(document.createTextNode(' rp'));
-                                    break;
-                                }
-                                default: {
-                                    throw 'unknown InOut kind';
-                                }
-                            }
-                            unnamedAppearances.appendChild(inOut);
+                            unnamedAppearances.appendChild(displayInOut(val.i, val.o));
                         });
                         document.getElementById('result').replaceChildren(name, appearances, unnamedAppearances);
                     } else {
@@ -843,29 +868,7 @@ async function updateDownload() {
                                 puzzle.appendChild(document.createTextNode(val.puzzle));
                             }
                             nameElt.appendChild(puzzle);
-                            const inOut = document.createElement('em');
-                            inOut.setAttribute('class', 'muted');
-                            switch (val.inout) {
-                                case 'Reagent': {
-                                    inOut.setAttribute('title', 'appears as reagent');
-                                    inOut.appendChild(document.createTextNode(' r'));
-                                    break;
-                                }
-                                case 'Product': {
-                                    inOut.setAttribute('title', 'appears as product');
-                                    inOut.appendChild(document.createTextNode(' p'));
-                                    break;
-                                }
-                                case 'Both': {
-                                    inOut.setAttribute('title', 'appears as both reagent and product');
-                                    inOut.appendChild(document.createTextNode(' rp'));
-                                    break;
-                                }
-                                default: {
-                                    throw 'unknown InOut kind';
-                                }
-                            }
-                            nameElt.appendChild(inOut);
+                            nameElt.appendChild(displayInOut(val.i, val.o));
                         });
                         return nameElt;
                     });
@@ -889,29 +892,7 @@ async function updateDownload() {
                                 puzzle.appendChild(document.createTextNode(val.puzzle));
                             }
                             unnamedAppearances.appendChild(puzzle);
-                            const inOut = document.createElement('em');
-                            inOut.setAttribute('class', 'muted');
-                            switch (val.inout) {
-                                case 'Reagent': {
-                                    inOut.setAttribute('title', 'appears as reagent');
-                                    inOut.appendChild(document.createTextNode(' r'));
-                                    break;
-                                }
-                                case 'Product': {
-                                    inOut.setAttribute('title', 'appears as product');
-                                    inOut.appendChild(document.createTextNode(' p'));
-                                    break;
-                                }
-                                case 'Both': {
-                                    inOut.setAttribute('title', 'appears as both reagent and product');
-                                    inOut.appendChild(document.createTextNode(' rp'));
-                                    break;
-                                }
-                                default: {
-                                    throw 'unknown InOut kind';
-                                }
-                            }
-                            unnamedAppearances.appendChild(inOut);
+                            unnamedAppearances.appendChild(displayInOut(val.i, val.o));
                         });
                         appearances.push(unnamedAppearances);
                     }
