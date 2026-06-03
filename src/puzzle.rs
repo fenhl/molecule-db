@@ -727,6 +727,7 @@ puzzles! {
     DurableStitching => "Durable Stitching", official(Journal(108, 9), "P296"),
     DwarvenFireWine => "Dwarven Fire Wine", zlbb("w1698786588", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/"),
     DyeHard => "Dye Hard", critelli("OM2023Weeklies_DyeHard"),
+    Electrum => "Electrum", official(Journal(108, 10), "P303"),
     ElectrumSeparation => "Electrum Separation", official(Journal(99, 8), "P103"),
     ElementalComparator => "Elemental Comparator", critelli_computation(
         "OM2023_W8w_ElementalComparator",
@@ -927,6 +928,7 @@ puzzles! {
     MiraculousDentifrice => "Miraculous Dentifrice", official(Journal(108, 3), "P266"),
     MirrorPolish => "Mirror Polish", official(Journal(108, 3), "P269"),
     MirroringAmalgam => "Mirroring Amalgam", official(Journal(108, 9), "P298"),
+    MistOfClarification => "Mist of Clarification", official(Journal(108, 10), "P300"),
     MistOfDousing => "Mist of Dousing", zlbb("w2450512021", "https://drive.google.com/drive/folders/1JX9JEdzXfFgn1-z4Yno_oMjSHHg8eGxE"),
     MistOfGlaciation => "Mist of Glaciation", official(Journal(108, 6), "P283"),
     MistOfHallucination => "Mist of Hallucination", official(Campaign(5), "P038"),
@@ -934,6 +936,7 @@ puzzles! {
     MixedUseLubricant => "Mixed-Use Lubricant", official(Drm(1), "P205"),
     MoonlightCatalyst => "Moonlight Catalyst", critelli("OM2025Weeklies11_MoonlightCatalyst"),
     MooringCable => "Mooring Cable", official(Journal(108, 1), "P255"),
+    MosaicTessera => "Mosaic Tessera", official(Journal(108, 10), "P304"),
     MyArmsAreBound => "My Arms Are Bound", critelli_private("ea51e6dcb8f5b83c0ef6e6b1f965d57a", "MyArmsAreBound"),
     NightmareFuel => "Nightmare Fuel", critelli("OM2022Weeklies_NightmareFuel"),
     Nylon => "Nylon", critelli("OM2025Weeklies9_Nylon"),
@@ -1054,6 +1057,7 @@ puzzles! {
     SyntheticMalachite => "Synthetic Malachite", official(Journal(99, 9), "P109"),
     Taricene => "Taricene", critelli("21042bbbbef69aef2000df9b97a4df9b"),
     TaxFraud => "Tax Fraud", critelli("a39b83445002fbdea218e8b184a9e478"),
+    TemperedGlass => "Tempered Glass", official(Journal(108, 10), "P301"),
     TheAmazingEverythingMachine => "The Amazing Everything-Machine", critelli_computation(
         "OM2025week4_The_Amazing_Everything-Machine",
         CARDINALS.into_iter().chain(METALS).map(|atom| [
@@ -1124,6 +1128,7 @@ puzzles! {
     VaporOfLevity => "Vapor of Levity", official(Appendix, "P078"),
     VaporizedPropellant => "Vaporized Propellant", other("https://discord.com/channels/278707932089155584/296373951800541186/872298625798119455"),
     VaporousSolvent => "Vaporous Solvent", official(Journal(99, 7), "P098"),
+    VerdigrisGlaze => "Verdigris Glaze", official(Journal(108, 10), "P302"),
     VermilionPigment => "Vermilion Pigment", official(Journal(108, 5), "P276"),
     VeryDarkThread => "Very Dark Thread", official(Campaign(3), "P029"),
     ViaMedia => "Via Media", official(Journal(108, 6), "P284"),

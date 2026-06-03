@@ -257,7 +257,6 @@ impl MoleculeExt for Molecule {
                     for (let shadow = 4; shadow >= 0; shadow -= 4) {{
                 "));
                 @for Bond { start, end, ty } in bonds {
-                    @let _ = ty; //TODO
                     : RawHtml(format!("drawProductBond(pctx{id}, {}, {min_x}, {}, {}, {}/6, shadow);\n", match ty {
                         BondType::Normal => Cow::Borrowed("false, false, false"),
                         BondType::Triplex { red, black, yellow } => Cow::Owned(format!("{red}, {black}, {yellow}")),
