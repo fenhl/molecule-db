@@ -535,8 +535,10 @@ async fn index(config: &State<Config>, http_client: &State<reqwest::Client>, m: 
                     : " ";
                     a(id = "radius-up", href = uri!(index(m, radius.checked_add(1).filter(|new_radius| *new_radius != min_radius.max(NonZero::new(5).unwrap())))), style? = radius.checked_add(1).is_none().then_some("display: none;")) : "+";
                 }
-                div(id = "permalink", class = "canvas-button", style = "display: none;") {
-                    a : "Copy Permalink";
+                @if b.unwrap_or_else(|| NonZero::new(5).unwrap()).get() <= 8 { //TODO the encoding does not account for coordinates for B>8, use a different encoding for this case
+                    div(id = "permalink", class = "canvas-button", style = "display: none;") {
+                        a : "Copy Permalink";
+                    }
                 }
             }
             div(id = "result", style = "display: none;");
