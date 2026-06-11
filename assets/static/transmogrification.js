@@ -17,49 +17,6 @@ let state = {
 };
 let nextState = state;
 
-const atomsByEncoding = [
-    'salt',
-    'air',
-    'earth',
-    'fire',
-    'water',
-    'quicksilver',
-    'gold',
-    'silver',
-    'copper',
-    'iron',
-    'tin',
-    'lead',
-    'vitae',
-    'mors',
-    'quintessence',
-];
-const atomEncoding = {
-    salt: 0n,
-    air: 1n,
-    earth: 2n,
-    fire: 3n,
-    water: 4n,
-    quicksilver: 5n,
-    gold: 6n,
-    silver: 7n,
-    copper: 8n,
-    iron: 9n,
-    tin: 10n,
-    lead: 11n,
-    vitae: 12n,
-    mors: 13n,
-    quintessence: 14n,
-};
-function bondEncoding(bond) {
-    if (bond === 'n')
-        return 1n;
-    else if (bond === 'ryk')
-        return 2n;
-    else
-        return 0n;
-}
-
 function visit(atom, bond) {
     for (let i = -(radius - 1); i <= radius - 1; ++i) {
         for (let j = -(radius - 1); j <= radius - 1; ++j) {
@@ -340,72 +297,6 @@ function updateNextState() {
             nextState[bondKey] = nextState['selectedBond'];
     }
 }
-function sortedAtomPositions(state) {
-    return Object.keys(state).map(function (a) {
-        return a.split(',').map(function (n) { return parseInt(n, 10); });
-    }).filter(function (a) {
-        return a.length === 2;
-    }).sort(function (a, b) {
-        if (a[0] < b[0])
-            return -1;
-        if (a[0] > b[0])
-            return 1;
-        if (a[1] < b[1])
-            return -1;
-        if (a[1] > b[1])
-            return 1;
-        return 0;
-    });
-}
-function stateToNumber(state) {
-    const atomPositions = sortedAtomPositions(state);
-    let cursor;
-    let multiplier = 1n;
-    let number = 0n;
-    for (const position of atomPositions) {
-        if (cursor && cursor[0] !== position[0]) {
-            while (cursor[1] > position[1]) {
-                multiplier *= 3n;
-                cursor[1]--;
-            }
-            while (cursor[0] < position[0]) {
-                number += multiplier * 2n;
-                multiplier *= 3n;
-                cursor[0]++;
-            }
-        }
-        if (cursor && cursor[1] !== position[1]) {
-            cursor[1]++;
-            while (cursor[1] !== position[1]) {
-                multiplier *= 3n;
-                cursor[1]++;
-            }
-        }
-        if (cursor) {
-            number += multiplier;
-            multiplier *= 3n;
-        }
-        const atom = state[`${position[0]},${position[1]}`];
-        number += atomEncoding[atom] * multiplier;
-        multiplier *= 15n;
-        cursor = JSON.parse(JSON.stringify(position));
-    }
-    for (const position of atomPositions) {
-        if (state[`${position[0]+1},${position[1]}`]) {
-            number += bondEncoding(state[`${position[0]},${position[1]}:${position[0]+1},${position[1]}`]) * multiplier;
-            multiplier *= 3n;
-        }
-        if (state[`${position[0]-1},${position[1]+1}`]) {
-            number += bondEncoding(state[`${position[0]},${position[1]}:${position[0]-1},${position[1]+1}`]) * multiplier;
-            multiplier *= 3n;
-        }
-        if (state[`${position[0]},${position[1]+1}`]) {
-            number += bondEncoding(state[`${position[0]},${position[1]}:${position[0]},${position[1]+1}`]) * multiplier;
-            multiplier *= 3n;
-        }
-    }
-    return number;
-}
 function visitBondForValidation(state, result, stack, visited, p, u, v) {
     const bondNeighbor = [p[0] + u, p[1] + v];
     const bondKey = keyForBond(canonicalizeBond([p, bondNeighbor]));
@@ -447,185 +338,6 @@ function validateState(state) {
         visitBondForValidation(state, result, stack, visited, p, 1, -1);
     }
     return result;
-}
-function triangular(index) {
-    let n = 1;
-    while (true) {
-        if (index < n)
-            return [ n, index ];
-        index -= n;
-        n++;
-    }
-}
-function tetrahedral(index) {
-    let n = 2;
-    while (true) {
-        if (index < n * (n - 1) / 2) {
-            const [ a, b ] = triangular(index);
-            return [ n, a, b ];
-        }
-        index -= n * (n - 1) / 2;
-        n++;
-    }
-}
-function stateForEnumerationIndex(index) {
-    if (index < 0)
-        throw 'index out of range';
-    if (index < 15)
-        return { '0,0': atomsByEncoding[index] };
-    index -= 15;
-    if (index < 120) {
-        const [ a, b ] = triangular(index);
-        return { '0,0': atomsByEncoding[a - 1], '1,0': atomsByEncoding[b], '0,0:1,0': 'n' };
-    }
-    index -= 120;
-    if (index < 1800) {
-        const b = index % 15;
-        const [ a, c ] = triangular(Math.floor(index / 15));
-        return {
-            '0,0': atomsByEncoding[a - 1],
-            '1,0': atomsByEncoding[b],
-            '2,0': atomsByEncoding[c],
-            '0,0:1,0': 'n',
-            '1,0:2,0': 'n',
-        };
-    }
-    index -= 1800;
-    if (index < 3375) {
-        const a = index % 15;
-        index = Math.floor(index / 15);
-        const b = index % 15;
-        index = Math.floor(index / 15);
-        const c = index % 15;
-        return {
-            '0,0': atomsByEncoding[a],
-            '1,-1': atomsByEncoding[b],
-            '1,0': atomsByEncoding[c],
-            '1,-1:0,0': 'n',
-            '1,-1:1,0': 'n',
-        };
-    }
-    index -= 3375;
-    if (index < 3375) {
-        const a = index % 15;
-        index = Math.floor(index / 15);
-        const b = index % 15;
-        index = Math.floor(index / 15);
-        const c = index % 15;
-        return {
-            '0,0': atomsByEncoding[a],
-            '1,-1': atomsByEncoding[b],
-            '2,-1': atomsByEncoding[c],
-            '1,-1:0,0': 'n',
-            '1,-1:2,-1': 'n',
-        };
-    }
-    index -= 3375;
-    if (index < 225) {
-        const a = index % 15;
-        index = Math.floor(index / 15);
-        const b = index % 15;
-        return {
-            '0,0': atomsByEncoding[a],
-            '1,-1': atomsByEncoding[b],
-            '1,0': atomsByEncoding[a],
-            '1,-1:0,0': 'n',
-            '1,-1:1,0': 'n',
-            '0,0:1,0': 'n',
-        };
-    }
-    index -= 225;
-    if (index < 910) {
-        const flip = index % 2;
-        index = Math.floor(index / 2);
-        const [ a, b, c ] = tetrahedral(index);
-        return {
-            '0,0': atomsByEncoding[a],
-            '1,-1': flip ? atomsByEncoding[b] : atomsByEncoding[c],
-            '1,0': flip ? atomsByEncoding[c] : atomsByEncoding[b],
-            '1,-1:0,0': 'n',
-            '1,-1:1,0': 'n',
-            '0,0:1,0': 'n',
-        };
-    }
-    index -= 910;
-    if (index < 15) {
-        return {
-            '0,0': 'fire',
-            '1,0': 'fire',
-            '2,0': atomsByEncoding[index],
-            '0,0:1,0': 'ryk',
-            '1,0:2,0': 'n',
-        };
-    }
-    index -= 15;
-    if (index < 15) {
-        return {
-            '0,0': 'fire',
-            '1,-1': 'fire',
-            '1,0': atomsByEncoding[index],
-            '1,-1:0,0': 'ryk',
-            '1,-1:1,0': 'n',
-        };
-    }
-    index -= 15;
-    if (index < 15) {
-        return {
-            '0,0': atomsByEncoding[index],
-            '1,-1': 'fire',
-            '1,0': 'fire',
-            '1,-1:0,0': 'n',
-            '1,-1:1,0': 'ryk',
-        };
-    }
-    index -= 15;
-    if (index < 15) {
-        return {
-            '0,0': 'fire',
-            '1,-1': 'fire',
-            '2,-1': atomsByEncoding[index],
-            '1,-1:0,0': 'ryk',
-            '1,-1:2,-1': 'n',
-        };
-    }
-    index -= 15;
-    if (index < 15) {
-        return {
-            '0,0': atomsByEncoding[index],
-            '1,-1': 'fire',
-            '2,-1': 'fire',
-            '1,-1:0,0': 'n',
-            '1,-1:2,-1': 'ryk',
-        };
-    }
-    index -= 15;
-    if (index < 15) {
-        return {
-            '0,0': 'fire',
-            '1,-1': atomsByEncoding[index],
-            '1,0': 'fire',
-            '1,-1:0,0': 'n',
-            '1,-1:1,0': 'n',
-            '0,0:1,0': 'ryk',
-        };
-    }
-    index -= 15;
-    switch (index) {
-    case 0:
-        return { '0,0': 'fire', '1,0': 'fire', '0,0:1,0': 'ryk' };
-    case 1:
-        return { '0,0': 'fire', '1,0': 'fire', '2,0': 'fire', '0,0:1,0': 'ryk', '1,0:2,0': 'ryk' };
-    case 2:
-        return { '0,0': 'fire', '1,-1': 'fire', '1,0': 'fire', '1,-1:0,0': 'ryk', '1,-1:1,0': 'ryk' };
-    case 3:
-        return { '0,0': 'fire', '1,-1': 'fire', '2,-1': 'fire', '1,-1:0,0': 'ryk', '1,-1:2,-1': 'ryk' };
-    case 4:
-        return { '0,0': 'fire', '1,-1': 'fire', '1,0': 'fire', '1,-1:0,0': 'ryk', '1,-1:1,0': 'ryk', '0,0:1,0': 'n' };
-    case 5:
-        return { '0,0': 'fire', '1,-1': 'fire', '1,0': 'fire', '1,-1:0,0': 'ryk', '1,-1:1,0': 'ryk', '0,0:1,0': 'ryk' };
-    default:
-        throw 'number out of range';
-    }
 }
 function displayInOut(i, o) {
     const inOut = document.createElement('em');
@@ -911,13 +623,6 @@ async function updateDownload() {
         }
     }
 }
-function rotateCCW(point) {
-    if (point.length !== 2)
-        return point;
-    const u = parseInt(point[0], 10);
-    const v = parseInt(point[1], 10);
-    return [-v, u + v];
-}
 function canonicalizeBond(bond) {
     if (bond.length !== 2)
         return bond;
@@ -931,12 +636,6 @@ function canonicalizeBond(bond) {
 }
 function keyForBond(bond) {
     return bond.map(function (entry) { return entry.join(','); }).join(':');
-}
-function rotateStateCCW(state) {
-    const rotated = {};
-    for (const key of Object.keys(state))
-        rotated[keyForBond(canonicalizeBond(key.split(':').map(function (entry) { return rotateCCW(entry.split(',')); })))] = state[key];
-    return rotated;
 }
 window.addEventListener('mousemove', async function (e) {
     const r = canvas.getBoundingClientRect();

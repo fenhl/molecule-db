@@ -3,7 +3,6 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 use {
     std::{
-        borrow::Cow,
         cmp::Ordering::{
             self,
             *,
@@ -128,6 +127,7 @@ trait MoleculeExt {
     fn position_normalized(&self) -> Self;
     fn normalized(&self) -> Self;
     fn mirrored(&self) -> Self;
+    fn draw_params(&self) -> String;
     fn draw(&self, id: &str) -> RawHtml<String>;
 }
 
@@ -234,52 +234,32 @@ impl MoleculeExt for Molecule {
         self.mapped_positions(|pos| HexIndex { q: -pos.s(), r: -pos.r, }).position_normalized()
     }
 
-    fn draw(&self, id: &str) -> RawHtml<String> {
+    fn draw_params(&self) -> String {
         let Self { atoms, bonds } = self.mirrored();
         let min_x = atoms.keys().map(|&HexIndex { q, r }| 2 * q + r).min().unwrap_or_default();
         let width = atoms.keys().map(|&HexIndex { q, r }| 2 * q + r + 2).max().unwrap_or_default() - min_x;
         let height = atoms.keys().map(|&HexIndex { r, .. }| r + 1).max().unwrap_or_default();
         let width = (41 * width + 10) * 3 / 4;
         let height = (71 * height + 20) * 3 / 4;
+        format!("{min_x}, {width}, {height}, [{}], [{}]",
+            atoms.into_iter().map(|(coords, kind)| format!("{{kind: {:?}, q: {}, r: {}}}", format_atom(kind), coords.q, coords.r)).join(", "),
+            bonds.into_iter().map(|Bond { start, end, ty }| format!(
+                "{{start: {{q: {}, r: {}}}, end: {{q: {}, r: {}}}, red: {}, black: {}, yellow: {}}}",
+                start.q,
+                start.r,
+                end.q,
+                end.r,
+                match ty { BondType::Normal => false, BondType::Triplex { red, .. } => red },
+                match ty { BondType::Normal => false, BondType::Triplex { black, .. } => black },
+                match ty { BondType::Normal => false, BondType::Triplex { yellow, .. } => yellow },
+            )).join(", "),
+        )
+    }
+
+    fn draw(&self, id: &str) -> RawHtml<String> {
         html! {
             canvas(class = "molecule-canvas", id = id);
-            script {
-                : RawHtml(format!("
-                    const productCanvas{id} = document.getElementById({id:?});
-                    productCanvas{id}.width = {width} * window.devicePixelRatio;
-                    productCanvas{id}.style.width = '{width}px';
-                    productCanvas{id}.height = {height} * window.devicePixelRatio;
-                    productCanvas{id}.style.height = '{height}px';
-                    const pctx{id} = productCanvas{id}.getContext('2d');
-                    pctx{id}.scale(window.devicePixelRatio, window.devicePixelRatio);
-                    pctx{id}.scale(0.75, 0.75);
-                    pctx{id}.fillStyle = '#223';
-                    for (let shadow = 4; shadow >= 0; shadow -= 4) {{
-                "));
-                @for Bond { start, end, ty } in bonds {
-                    : RawHtml(format!("drawProductBond(pctx{id}, {}, {min_x}, {}, {}, {}/6, shadow);\n", match ty {
-                        BondType::Normal => Cow::Borrowed("false, false, false"),
-                        BondType::Triplex { red, black, yellow } => Cow::Owned(format!("{red}, {black}, {yellow}")),
-                    }, start.q, start.r, match end - start {
-                        HexIndex { q: 1, r: 0 } => 0,
-                        HexIndex { q: 0, r: 1 } => 1,
-                        HexIndex { q: -1, r: 1 } => 2,
-                        HexIndex { q: -1, r: 0 } => 3,
-                        HexIndex { q: 0, r: -1 } => 4,
-                        HexIndex { q: 1, r: -1 } => 5,
-                        _ => unimplemented!("quantum bond"),
-                    }));
-                }
-                : RawHtml("if (!shadow) {\n");
-                @for (coords, atom) in &atoms {
-                    : RawHtml(format!("drawProductAtom(pctx{id}, '{}', {min_x}, {}, {}, 2);\n", format_atom(*atom), coords.q, coords.r));
-                }
-                : RawHtml("}\n");
-                @for (coords, atom) in atoms {
-                    : RawHtml(format!("drawProductAtom(pctx{id}, '{}', {min_x}, {}, {}, shadow);\n", format_atom(atom), coords.q, coords.r));
-                }
-                : RawHtml("}\n");
-            }
+            script : RawHtml(format!("drawProduct({id:?}, {});", self.draw_params()));
         }
     }
 }

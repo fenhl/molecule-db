@@ -1,5 +1,6 @@
 use {
     std::{
+        borrow::Cow,
         collections::{
             HashMap,
             HashSet,
@@ -90,16 +91,18 @@ impl ToHtml for OfficialCollection {
 pub(crate) enum Source {
     Computation {
         url: &'static str,
-        #[allow(unused)] //TODO display dynamic molecules on puzzle page
-        permutations: Vec<[Vec<Molecule>; 2]>,
+        num_permutations: u32,
+        permutations: Box<dyn Iterator<Item = [Vec<Molecule>; 2]> + Send>,
+        js_get_permutation: Cow<'static, str>,
     },
     Critelli {
         url_part: &'static str,
     },
     CritelliComputation {
         url_part: &'static str,
-        #[allow(unused)] //TODO display dynamic molecules on puzzle page
-        permutations: Vec<[Vec<Molecule>; 2]>,
+        num_permutations: u32,
+        permutations: Box<dyn Iterator<Item = [Vec<Molecule>; 2]> + Send>,
+        js_get_permutation: Cow<'static, str>,
     },
     CritelliPrivate {
         url_part: &'static str,
@@ -130,12 +133,29 @@ impl Source {
             Self::Computation { url, .. } | Self::Other { url } | Self::Zlbb { url, .. } => Some(url.parse().unwrap()),
         }
     }
+
+    fn computation_data(&self) -> Option<(u32, &str)> {
+        match self {
+            Self::Computation { num_permutations, js_get_permutation, .. } | Self::CritelliComputation { num_permutations, js_get_permutation, .. } => Some((*num_permutations, js_get_permutation)),
+            Self::Critelli { .. } | Self::CritelliPrivate { .. } | Self::Official { .. } | Self::OfficialNonLb { .. } | Self::Other { .. } | Self::Tutorial | Self::Zlbb { .. } => None,
+        }
+    }
+
+    #[allow(unused)] // may be useful for validation later
+    fn computation_permutations(self) -> impl Iterator<Item = [Vec<Molecule>; 2]> {
+        match self {
+            Self::Computation { permutations, .. } | Self::CritelliComputation { permutations, .. } => permutations,
+            Self::Critelli { .. } | Self::CritelliPrivate { .. } | Self::Official { .. } | Self::OfficialNonLb { .. } | Self::Other { .. } | Self::Tutorial | Self::Zlbb { .. } => Box::new(iter::empty()),
+        }
+    }
 }
 
-fn computation(url: &'static str, permutations: impl IntoIterator<Item = [Vec<Molecule>; 2]>) -> Source {
+fn computation<I: IntoIterator<Item = [Vec<Molecule>; 2]>>(url: &'static str, num_permutations: u32, permutations: I, js_get_permutation: impl Into<Cow<'static, str>>) -> Source
+where I::IntoIter: Send + 'static {
     Source::Computation {
-        permutations: permutations.into_iter().collect(),
-        url,
+        permutations: Box::new(permutations.into_iter()),
+        js_get_permutation: js_get_permutation.into(),
+        url, num_permutations,
     }
 }
 
@@ -143,10 +163,12 @@ fn critelli(url_part: &'static str) -> Source {
     Source::Critelli { url_part }
 }
 
-fn critelli_computation(url_part: &'static str, permutations: impl IntoIterator<Item = [Vec<Molecule>; 2]>) -> Source {
+fn critelli_computation<I: IntoIterator<Item = [Vec<Molecule>; 2]>>(url_part: &'static str, num_permutations: u32, permutations: I, js_get_permutation: impl Into<Cow<'static, str>>) -> Source
+where I::IntoIter: Send + 'static {
     Source::CritelliComputation {
-        permutations: permutations.into_iter().collect(),
-        url_part,
+        permutations: Box::new(permutations.into_iter()),
+        js_get_permutation: js_get_permutation.into(),
+        url_part, num_permutations,
     }
 }
 
@@ -273,8 +295,11 @@ pub(crate) async fn get(config: &State<Config>, http_client: &State<reqwest::Cli
                 Source::Tutorial => : "tutorial";
             }
         }
+        @if let Puzzle::MemoryLane = puzzle {
+            p : "Note: The mapping from the variable input to the variable output is defined by each individual solution. This page shows a random encoding, refresh it to generate a new one.";
+        }
         h2 : "Reagents";
-        div(class = "row") {
+        div(id = "reagents", class = "row") {
             @for (idx1, (molecule, name, count)) in molecules::molecules()
                 .into_iter()
                 .flat_map(|(molecule, appearances)| appearances.into_iter().filter_map(move |(iter_puzzle, i, _, name)| (iter_puzzle == puzzle && i > 0).then(|| (molecule.clone(), name, i))))
@@ -295,7 +320,7 @@ pub(crate) async fn get(config: &State<Config>, http_client: &State<reqwest::Cli
             }
         }
         h2 : "Products";
-        div(class = "row") {
+        div(id = "products", class = "row") {
             @for (idx1, (molecule, name, count)) in molecules::molecules()
                 .into_iter()
                 .flat_map(|(molecule, appearances)| appearances.into_iter().filter_map(move |(iter_puzzle, _, o, name)| (iter_puzzle == puzzle && o > 0).then(|| (molecule.clone(), name, o))))
@@ -313,6 +338,68 @@ pub(crate) async fn get(config: &State<Config>, http_client: &State<reqwest::Cli
                         a(href = uri!(crate::index(Some(FormMolecule(molecule.clone())), _))) : molecule.draw(&format!("product{idx1}_{idx2}"));
                     }
                 }
+            }
+        }
+        @let source = puzzle.source();
+        @if let Some((num_permutations, js_get_permutation)) = source.computation_data() {
+            script {
+                : RawHtml(format!("
+                    const numPermutations = {num_permutations};
+                    function getPermutation(idx) {{
+                        {js_get_permutation}
+                    }}
+                "));
+                : RawHtml("
+                    const reagents = document.getElementById('reagents');
+                    const products = document.getElementById('products');
+                    let remainingPermutations = [...Array(numPermutations).keys()];
+                    function nextPermutation() {
+                        if (remainingPermutations.length == 0) {
+                            remainingPermutations = [...Array(numPermutations).keys()];
+                        }
+                        const [permutationIdx] = remainingPermutations.splice(Math.floor(Math.random() * remainingPermutations.length), 1);
+                        const permutation = getPermutation(permutationIdx);
+                        for (const elt of [...document.getElementsByClassName('computation-molecule')]) {
+                            elt.remove();
+                        }
+                        for (const [idx, reagent] of permutation.reagents.entries()) {
+                            const id = `computation-reagent${idx}`;
+                            const div = document.createElement('div');
+                            div.setAttribute('class', 'computation-molecule');
+                            const h3 = document.createElement('h3');
+                            const span = document.createElement('span');
+                            span.setAttribute('class', 'muted');
+                            span.appendChild(document.createTextNode('variable'));
+                            h3.appendChild(span);
+                            div.appendChild(h3);
+                            const canvas = document.createElement('canvas');
+                            canvas.setAttribute('class', 'molecule-canvas');
+                            canvas.setAttribute('id', id);
+                            div.appendChild(canvas); //TODO linkify
+                            reagents.appendChild(div);
+                            drawProduct(id, ...reagent);
+                        }
+                        for (const [idx, product] of permutation.products.entries()) {
+                            const id = `computation-product${idx}`;
+                            const div = document.createElement('div');
+                            div.setAttribute('class', 'computation-molecule');
+                            const h3 = document.createElement('h3');
+                            const span = document.createElement('span');
+                            span.setAttribute('class', 'muted');
+                            span.appendChild(document.createTextNode('variable'));
+                            h3.appendChild(span);
+                            div.appendChild(h3);
+                            const canvas = document.createElement('canvas');
+                            canvas.setAttribute('class', 'molecule-canvas');
+                            canvas.setAttribute('id', id);
+                            div.appendChild(canvas); //TODO linkify
+                            products.appendChild(div);
+                            drawProduct(id, ...product);
+                        }
+                    }
+                    nextPermutation();
+                    setInterval(nextPermutation, 2000);
+                ");
             }
         }
     }, html! {}).await)
@@ -639,6 +726,17 @@ fn state_from_enumeration_index(mut index: u16) -> Molecule {
     }
 }
 
+fn js_get_permutation_serverside(permutations: Vec<[Vec<Molecule>; 2]>) -> String {
+    format!("
+        const permutations = [{}];
+        return permutations[idx];
+    ", permutations.into_iter().map(|[reagents, products]| format!(
+        "{{reagents: [{}], products: [{}]}}",
+        reagents.into_iter().map(|reagent| format!("[{}]", reagent.draw_params())).join(", "),
+        products.into_iter().map(|product| format!("[{}]", product.draw_params())).join(", "),
+    )).join(", "))
+}
+
 puzzles! {
     AWelcomeToHouseColvan => "A Welcome to House Colvan", zlbb("w2450560971", "https://drive.google.com/drive/folders/1Lk1kj1YERh0yWvgIK89dpd_L7TzLhhTo"),
     AblativeCrystal => "Ablative Crystal", official(Journal(99, 3), "P068"),
@@ -673,6 +771,7 @@ puzzles! {
     BlueVitriolJournal => "Blue Vitriol (Journal issue XI)", official(Journal(99, 11), "P241"),
     Boozesort => "Boozesort", critelli_computation(
         "OM2025Weeklies8_Boozesort",
+        81,
         {
             const BOOZE: [Atom; 3] = [Atom::Fire, Atom::Salt, Atom::Water];
             BOOZE.into_iter().array_combinations_with_reps().map(|mut atoms @ [a, b, c, d]| [
@@ -683,6 +782,26 @@ puzzles! {
                 },
             ])
         },
+        "
+            const booze = ['fire', 'salt', 'water'];
+            const a = booze[Math.floor(idx / 27)];
+            const b = booze[Math.floor(idx / 9) % 3];
+            const c = booze[Math.floor(idx / 3) % 3];
+            const d = booze[idx % 3];
+            return {
+                reagents: [drawParams([
+                    {kind: a, q: 0, r: 1},
+                    {kind: b, q: 1, r: 1},
+                    {kind: c, q: 1, r: 2},
+                    {kind: d, q: 2, r: 0},
+                ], [
+                    {start: {q: 0, r: 1}, end: {q: 1, r: 1}, red: false, black: false, yellow: false},
+                    {start: {q: 1, r: 1}, end: {q: 1, r: 2}, red: false, black: false, yellow: false},
+                    {start: {q: 1, r: 1}, end: {q: 2, r: 0}, red: false, black: false, yellow: false},
+                ])],
+                products: [stick([a, b, c, d].sort((a, b) => booze.indexOf(a) - booze.indexOf(b)))],
+            };
+        ",
     ),
     BrazingCathode => "Brazing Cathode", critelli("OM2022Weeklies_BrazingCathode"),
     BreathableFluid => "Breathable Fluid", critelli("OM2024Weeklies_BreathableFluid"),
@@ -731,10 +850,20 @@ puzzles! {
     ElectrumSeparation => "Electrum Separation", official(Journal(99, 8), "P103"),
     ElementalComparator => "Elemental Comparator", critelli_computation(
         "OM2023_W8w_ElementalComparator",
+        16,
         CARDINALS.into_iter().array_combinations_with_reps().map(|[a, b]| [
             vec![Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => a], bonds: collect![] }, Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => b], bonds: collect![] }],
             vec![Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => if a == b { Atom::Gold } else { Atom::Salt }], bonds: collect![] }],
         ]),
+        "
+            const cardinals = ['earth', 'air', 'water', 'fire'];
+            const a = cardinals[Math.floor(idx / 4)];
+            const b = cardinals[idx % 4];
+            return {
+                reagents: [stick([a]), stick([b])],
+                products: [stick([a == b ? 'gold' : 'salt'])],
+            };
+        ",
     ),
     ElementalCopper => "Elemental Copper", official(Drm(1), "P202"),
     ElementalJewelSetting => "Elemental Jewel Setting", zlbb("w2450512809", "https://drive.google.com/drive/folders/1P7fsijiuJTI-1LKrpT7IMn7nj2V5PAvC"),
@@ -752,6 +881,7 @@ puzzles! {
     ExplosiveFingerTrap => "Explosive Finger Trap", other("https://discord.com/channels/278707932089155584/296373951800541186/874833948570689577"),
     ExplosiveLogicUnit => "Explosive Logic Unit", computation(
         "https://drive.google.com/drive/folders/1A_GkcZV1fxMt3vII6qGsD_wX2ULzG8Ca",
+        65536,
         all().array_combinations_with_reps().map(|[a, b]| {
             fn bits(n: u8) -> Vec<Atom> {
                 n.view_bits::<Msb0>().into_iter().map(|bit| if *bit { Atom::Fire } else { Atom::Salt }).collect()
@@ -762,6 +892,18 @@ puzzles! {
                 vec![stick(&bits(a.wrapping_sub(b)))],
             ]
         }),
+        "
+            const a = Math.floor(idx / 256);
+            const b = idx % 256;
+            function bits(n) {
+                const bitsSuffix = n.toString(2);
+                return [...'0'.repeat(8 - bitsSuffix.length) + bitsSuffix].map((bit) => bit == '1' ? 'fire' : 'salt');
+            }
+            return {
+                reagents: [stick(bits(a)), stick(bits(b))],
+                products: [stick(bits(((a - b) >>> 0) % 256))],
+            };
+        ",
     ),
     ExplosivePhial => "Explosive Phial", official(Campaign(2), "P017"),
     ExplosiveVictrite => "Explosive Victrite", official(Journal(99, 8), "P100"),
@@ -790,10 +932,32 @@ puzzles! {
     Gunmetal => "Gunmetal", official(Journal(108, 4), "P272"),
     HabitabilityDetector => "Habitability Detector", critelli_computation(
         "OM2023_W8_HabitabilityDetector",
+        262144,
         CARDINALS.into_iter().array_combinations_with_reps().map(|[p1, p2, p3, s1, s2, s3, s4, s5, s6]| [
             vec![stick(&[p1, p2, p3]), stick(&[s1, s2, s3, s4, s5, s6])],
             vec![Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => if [s1, s2, s3, s4, s5, s6].into_iter().array_windows().any(|window| window == [p1, p2, p3]) { Atom::Gold } else { Atom::Salt }], bonds: collect![] }],
         ]),
+        "
+            const cardinals = ['earth', 'air', 'water', 'fire'];
+            const p1 = cardinals[Math.floor(idx / 4 ** 8)];
+            const p2 = cardinals[Math.floor(idx / 4 ** 7) % 4];
+            const p3 = cardinals[Math.floor(idx / 4 ** 6) % 4];
+            const s1 = cardinals[Math.floor(idx / 4 ** 5) % 4];
+            const s2 = cardinals[Math.floor(idx / 4 ** 4) % 4];
+            const s3 = cardinals[Math.floor(idx / 4 ** 3) % 4];
+            const s4 = cardinals[Math.floor(idx / 4 ** 2) % 4];
+            const s5 = cardinals[Math.floor(idx / 4) % 4];
+            const s6 = cardinals[idx % 4];
+            return {
+                reagents: [stick([p1, p2, p3]), stick([s1, s2, s3, s4, s5, s6])],
+                products: [stick([(
+                    s1 == p1 && s2 == p2 && s3 == p3
+                    || s2 == p1 && s3 == p2 && s4 == p3
+                    || s3 == p1 && s4 == p2 && s5 == p3
+                    || s4 == p1 && s5 == p2 && s6 == p3
+                ) ? 'gold' : 'salt'])],
+            };
+        ",
     ),
     HairProduct => "Hair Product", official(Campaign(2), "P016"),
     HangoverCure => "Hangover Cure", official(Campaign(1), "P013"),
@@ -824,6 +988,7 @@ puzzles! {
     Lambent29 => "Lambent II/IX", official(Journal(99, 1), "P058"),
     Lambent67 => "Lambent LXVII", critelli_computation(
         "0c61ded553925ac6b6d567386c9982b8",
+        72,
         {
             // translated from https://lambentlxvii.pages.dev/
             const CELLS: [[i32; 2]; 36] = [[-3, 0], [-3, 1], [-3, 2], [-3, 3], [-2,-1], [-2, 0], [-2, 1], [-2, 2], [-2, 3], [-1,-2], [-1,-1], [-1, 0], [-1, 1], [-1, 2], [-1, 3], [0,-3], [0,-2], [0,-1], [0, 1], [0, 2], [0, 3], [1,-3], [1,-2], [1,-1], [1, 0], [1, 1], [1, 2], [2,-3], [2,-2], [2,-1], [2, 0], [2, 1], [3,-3], [3,-2], [3,-1], [3, 0]];
@@ -838,6 +1003,23 @@ puzzles! {
                 }
             }).flat_map(|molecule| [molecule.mirrored(), molecule]).map(|molecule| [vec![], vec![molecule]])
         },
+        "
+            const cells = [[-3, 0], [-3, 1], [-3, 2], [-3, 3], [-2,-1], [-2, 0], [-2, 1], [-2, 2], [-2, 3], [-1,-2], [-1,-1], [-1, 0], [-1, 1], [-1, 2], [-1, 3], [0,-3], [0,-2], [0,-1], [0, 1], [0, 2], [0, 3], [1,-3], [1,-2], [1,-1], [1, 0], [1, 1], [1, 2], [2,-3], [2,-2], [2,-1], [2, 0], [2, 1], [3,-3], [3,-2], [3,-1], [3, 0]];
+            const solutions = [[1, 3, 3, 3, 1, 2, 2, 2, 3, 1, 2, 5, 8, 8, 8, 1, 5, 5, 8, 4, 4, 5, 9, 9, 4, 4, 7, 9, 6, 6, 7, 7, 9, 6, 6, 7], [1, 3, 3, 3, 1, 9, 9, 4, 3, 1, 9, 5, 5, 4, 4, 1, 6, 9, 5, 5, 4, 6, 6, 2, 2, 2, 7, 6, 2, 8, 7, 7, 8, 8, 8, 7], [1, 3, 3, 3, 1, 9, 9, 4, 3, 1, 9, 5, 5, 4, 4, 1, 6, 9, 5, 5, 4, 6, 6, 7, 8, 8, 8, 6, 7, 7, 8, 2, 7, 2, 2, 2], [1, 3, 3, 3, 1, 9, 9, 4, 3, 1, 9, 5, 5, 4, 4, 1, 8, 9, 5, 5, 4, 2, 8, 8, 7, 7, 7, 2, 8, 6, 6, 7, 2, 2, 6, 6], [1, 3, 3, 3, 1, 4, 2, 2, 3, 1, 6, 4, 4, 2, 9, 1, 6, 6, 4, 2, 9, 8, 6, 5, 5, 9, 9, 8, 8, 7, 5, 5, 8, 7, 7, 7], [1, 3, 3, 3, 1, 4, 5, 5, 3, 1, 7, 4, 4, 5, 5, 1, 7, 7, 4, 8, 8, 7, 9, 2, 2, 2, 8, 9, 2, 6, 6, 8, 9, 9, 6, 6], [1, 3, 3, 3, 1, 4, 5, 5, 3, 1, 7, 4, 4, 5, 5, 1, 7, 7, 4, 6, 6, 7, 9, 9, 8, 6, 6, 9, 8, 8, 8, 2, 9, 2, 2, 2], [1, 3, 3, 3, 1, 5, 2, 4, 3, 1, 8, 5, 2, 4, 4, 1, 8, 5, 2, 2, 4, 8, 8, 5, 9, 9, 7, 6, 6, 9, 7, 7, 6, 6, 9, 7], [1, 3, 3, 3, 1, 6, 6, 8, 3, 1, 2, 6, 6, 8, 8, 1, 2, 4, 9, 8, 9, 2, 4, 5, 5, 9, 9, 2, 4, 7, 5, 5, 4, 7, 7, 7], [1, 3, 3, 3, 1, 8, 8, 8, 3, 1, 2, 8, 6, 6, 9, 1, 2, 4, 6, 6, 9, 2, 4, 5, 5, 9, 9, 2, 4, 7, 5, 5, 4, 7, 7, 7], [1, 3, 3, 3, 1, 8, 8, 8, 3, 1, 7, 8, 5, 9, 9, 1, 7, 7, 5, 4, 9, 7, 2, 2, 5, 4, 9, 6, 6, 2, 5, 4, 6, 6, 2, 4], [1, 8, 8, 7, 1, 4, 8, 9, 7, 1, 4, 8, 9, 7, 7, 1, 3, 4, 9, 9, 5, 3, 4, 6, 6, 5, 5, 3, 6, 6, 5, 2, 3, 2, 2, 2], [1, 9, 9, 8, 1, 9, 8, 8, 8, 1, 2, 9, 3, 3, 3, 1, 2, 4, 6, 6, 3, 2, 4, 5, 5, 6, 6, 2, 4, 7, 5, 5, 4, 7, 7, 7], [1, 7, 2, 2, 1, 4, 7, 5, 2, 1, 4, 7, 7, 5, 2, 1, 3, 4, 5, 8, 8, 3, 4, 9, 9, 5, 8, 3, 9, 6, 6, 8, 3, 9, 6, 6], [1, 8, 7, 7, 1, 8, 2, 7, 3, 1, 8, 8, 2, 7, 3, 1, 5, 5, 2, 2, 3, 6, 6, 5, 5, 9, 3, 6, 6, 4, 4, 9, 4, 4, 9, 9], [1, 8, 6, 6, 1, 8, 4, 6, 6, 1, 8, 8, 4, 4, 2, 1, 5, 5, 9, 4, 2, 7, 7, 5, 5, 9, 2, 7, 3, 9, 9, 2, 7, 3, 3, 3], [1, 8, 6, 7, 1, 8, 6, 6, 7, 1, 8, 8, 6, 7, 7, 1, 3, 9, 4, 4, 5, 3, 9, 4, 4, 5, 5, 3, 9, 9, 5, 2, 3, 2, 2, 2], [1, 8, 9, 9, 1, 8, 9, 4, 9, 1, 8, 8, 3, 4, 4, 1, 5, 5, 3, 2, 4, 7, 7, 5, 5, 3, 2, 7, 6, 6, 3, 2, 7, 6, 6, 2], [1, 8, 9, 9, 1, 8, 9, 4, 9, 1, 8, 8, 5, 4, 4, 1, 2, 2, 5, 6, 4, 7, 7, 2, 5, 6, 6, 7, 3, 2, 5, 6, 7, 3, 3, 3], [1, 6, 6, 5, 1, 4, 6, 6, 5, 1, 7, 4, 4, 5, 2, 1, 9, 7, 4, 5, 2, 9, 7, 7, 3, 8, 2, 9, 9, 3, 8, 2, 3, 3, 8, 8], [1, 6, 6, 5, 1, 4, 6, 6, 5, 1, 7, 4, 4, 5, 9, 1, 3, 7, 4, 5, 9, 3, 7, 7, 8, 9, 9, 3, 8, 8, 8, 2, 3, 2, 2, 2], [1, 6, 6, 5, 1, 4, 6, 6, 5, 1, 2, 4, 4, 5, 9, 1, 8, 2, 4, 5, 9, 8, 8, 2, 2, 9, 9, 3, 8, 7, 7, 7, 3, 3, 3, 7], [1, 7, 7, 7, 1, 9, 9, 7, 3, 1, 9, 5, 9, 2, 3, 1, 5, 5, 2, 4, 3, 5, 6, 6, 2, 4, 3, 6, 6, 8, 2, 4, 8, 8, 8, 4], [1, 7, 7, 7, 1, 2, 2, 7, 8, 1, 3, 3, 2, 8, 8, 1, 3, 4, 2, 6, 8, 3, 9, 4, 4, 6, 6, 9, 5, 5, 4, 6, 9, 9, 5, 5], [1, 7, 7, 7, 1, 9, 9, 7, 8, 1, 9, 5, 5, 8, 8, 1, 6, 9, 5, 5, 8, 6, 6, 3, 3, 4, 4, 6, 3, 4, 4, 2, 3, 2, 2, 2], [1, 7, 7, 7, 1, 9, 9, 7, 8, 1, 9, 5, 5, 8, 8, 1, 6, 9, 5, 5, 8, 6, 6, 2, 2, 2, 3, 6, 2, 4, 4, 3, 4, 4, 3, 3], [1, 7, 7, 7, 1, 9, 9, 7, 4, 1, 9, 5, 9, 4, 2, 1, 5, 5, 3, 4, 2, 5, 6, 6, 3, 4, 2, 6, 6, 8, 3, 2, 8, 8, 8, 3], [1, 7, 7, 7, 1, 6, 6, 7, 8, 1, 6, 6, 8, 8, 8, 1, 3, 9, 4, 4, 5, 3, 9, 4, 4, 5, 5, 3, 9, 9, 5, 2, 3, 2, 2, 2], [1, 2, 2, 2, 1, 2, 3, 3, 3, 1, 8, 4, 5, 5, 3, 1, 8, 4, 7, 5, 5, 8, 8, 4, 7, 7, 7, 9, 4, 9, 6, 6, 9, 9, 6, 6], [1, 2, 2, 2, 1, 2, 6, 6, 7, 1, 3, 3, 6, 6, 7, 1, 3, 4, 8, 7, 7, 3, 9, 4, 4, 8, 8, 9, 5, 5, 4, 8, 9, 9, 5, 5], [1, 2, 2, 2, 1, 2, 7, 7, 8, 1, 3, 3, 7, 8, 8, 1, 3, 4, 7, 6, 8, 3, 9, 4, 4, 6, 6, 9, 5, 5, 4, 6, 9, 9, 5, 5], [1, 2, 2, 2, 1, 2, 8, 8, 8, 1, 3, 3, 8, 6, 6, 1, 3, 4, 6, 6, 7, 3, 9, 4, 4, 7, 7, 9, 5, 5, 4, 7, 9, 9, 5, 5], [1, 2, 2, 2, 1, 2, 4, 4, 7, 1, 4, 4, 8, 8, 7, 1, 9, 9, 8, 7, 7, 9, 6, 9, 8, 5, 3, 6, 6, 5, 5, 3, 6, 5, 3, 3], [1, 2, 2, 2, 1, 2, 4, 4, 3, 1, 4, 4, 6, 6, 3, 1, 5, 5, 6, 6, 3, 7, 7, 5, 5, 9, 3, 7, 8, 8, 8, 9, 7, 8, 9, 9], [1, 2, 2, 2, 1, 2, 5, 9, 9, 1, 5, 5, 9, 8, 9, 1, 5, 4, 3, 8, 8, 7, 7, 4, 4, 3, 8, 7, 6, 6, 4, 3, 7, 6, 6, 3], [1, 2, 2, 2, 1, 2, 5, 6, 3, 1, 5, 5, 6, 6, 3, 1, 5, 8, 6, 4, 3, 7, 7, 8, 8, 4, 3, 7, 9, 8, 9, 4, 7, 9, 9, 4], [1, 2, 2, 2, 1, 2, 3, 3, 3, 1, 6, 6, 5, 5, 3, 1, 6, 6, 4, 5, 5, 7, 7, 7, 4, 8, 8, 9, 7, 9, 4, 8, 9, 9, 4, 8], [1, 2, 2, 2, 1, 2, 7, 8, 3, 1, 7, 7, 8, 8, 3, 1, 6, 7, 5, 8, 3, 6, 6, 5, 5, 9, 3, 6, 5, 4, 4, 9, 4, 4, 9, 9], [1, 2, 2, 2, 1, 2, 9, 9, 3, 1, 8, 9, 5, 9, 3, 1, 8, 8, 5, 4, 3, 7, 7, 8, 5, 4, 3, 7, 6, 6, 5, 4, 7, 6, 6, 4], [1, 9, 6, 6, 1, 9, 6, 6, 3, 1, 2, 9, 9, 5, 3, 1, 2, 4, 7, 5, 3, 2, 4, 7, 7, 5, 3, 2, 4, 7, 8, 5, 4, 8, 8, 8], [1, 6, 6, 5, 1, 6, 6, 3, 5, 1, 8, 4, 3, 5, 2, 1, 8, 4, 3, 5, 2, 8, 8, 4, 7, 3, 2, 9, 4, 9, 7, 2, 9, 9, 7, 7], [1, 6, 6, 5, 1, 6, 6, 4, 5, 1, 3, 3, 4, 5, 2, 1, 3, 7, 4, 5, 2, 3, 9, 7, 4, 8, 2, 9, 7, 7, 8, 2, 9, 9, 8, 8], [1, 6, 6, 3, 1, 6, 6, 3, 8, 1, 2, 3, 3, 8, 9, 1, 2, 4, 8, 8, 9, 2, 4, 5, 5, 9, 9, 2, 4, 7, 5, 5, 4, 7, 7, 7], [1, 6, 6, 3, 1, 6, 6, 8, 3, 1, 2, 8, 8, 8, 3, 1, 2, 4, 9, 3, 9, 2, 4, 5, 5, 9, 9, 2, 4, 7, 5, 5, 4, 7, 7, 7], [1, 6, 6, 8, 1, 6, 6, 8, 8, 1, 2, 3, 3, 3, 8, 1, 2, 4, 9, 3, 9, 2, 4, 5, 5, 9, 9, 2, 4, 7, 5, 5, 4, 7, 7, 7], [1, 6, 6, 4, 1, 6, 6, 4, 3, 1, 2, 2, 2, 4, 3, 1, 2, 5, 4, 8, 3, 7, 7, 5, 9, 8, 3, 7, 5, 9, 8, 8, 7, 5, 9, 9], [1, 6, 6, 2, 1, 6, 6, 2, 3, 1, 8, 4, 2, 5, 3, 1, 8, 4, 2, 5, 3, 8, 8, 4, 7, 5, 3, 9, 4, 9, 7, 5, 9, 9, 7, 7], [1, 4, 9, 9, 1, 4, 9, 2, 2, 1, 8, 4, 9, 3, 2, 1, 8, 4, 5, 3, 2, 8, 8, 7, 7, 5, 3, 6, 6, 7, 5, 3, 6, 6, 7, 5], [1, 4, 9, 9, 1, 4, 9, 6, 6, 1, 8, 4, 9, 6, 6, 1, 8, 4, 2, 2, 2, 8, 8, 7, 2, 5, 3, 7, 7, 5, 5, 3, 7, 5, 3, 3], [1, 4, 9, 9, 1, 4, 9, 6, 6, 1, 8, 4, 9, 6, 6, 1, 8, 4, 3, 3, 5, 8, 8, 7, 3, 5, 5, 7, 7, 3, 5, 2, 7, 2, 2, 2], [1, 4, 9, 9, 1, 4, 9, 7, 7, 1, 8, 4, 9, 7, 2, 1, 8, 4, 5, 7, 2, 8, 8, 6, 6, 5, 2, 3, 6, 6, 5, 2, 3, 3, 3, 5], [1, 2, 9, 9, 1, 2, 6, 6, 9, 1, 2, 6, 6, 9, 5, 1, 8, 2, 5, 5, 7, 8, 8, 4, 5, 7, 7, 3, 8, 4, 4, 7, 3, 3, 3, 4], [1, 7, 6, 6, 1, 7, 7, 6, 6, 1, 7, 4, 4, 9, 9, 1, 4, 4, 9, 8, 8, 5, 5, 2, 2, 9, 8, 3, 5, 5, 2, 8, 3, 3, 3, 2], [1, 7, 6, 6, 1, 7, 7, 6, 6, 1, 7, 4, 4, 9, 9, 1, 4, 4, 9, 2, 9, 8, 8, 8, 5, 3, 2, 8, 5, 5, 3, 2, 5, 3, 3, 2], [1, 7, 9, 9, 1, 7, 7, 5, 9, 1, 7, 5, 5, 9, 2, 1, 8, 5, 6, 6, 2, 8, 8, 4, 6, 6, 2, 3, 8, 4, 4, 2, 3, 3, 3, 4], [1, 8, 8, 8, 1, 9, 8, 9, 3, 1, 2, 9, 9, 6, 3, 1, 2, 4, 6, 6, 3, 2, 4, 5, 5, 6, 3, 2, 4, 7, 5, 5, 4, 7, 7, 7], [5, 5, 2, 2, 9, 9, 5, 5, 2, 9, 1, 1, 1, 1, 2, 4, 9, 8, 7, 7, 7, 4, 4, 8, 8, 6, 7, 3, 4, 8, 6, 6, 3, 3, 3, 6]];
+            const bonds = [[-3, 0, -3, 1], [-3, 0, -2, -1], [-3, 0, -2, 0], [-3, 1, -3, 2], [-3, 1, -2, 0], [-3, 1, -2, 1], [-3, 2, -3, 3], [-3, 2, -2, 1], [-3, 2, -2, 2], [-3, 3, -2, 2], [-3, 3, -2, 3], [-2, -1, -2, 0], [-2, -1, -1, -2], [-2, -1, -1, -1], [-2, 0, -2, 1], [-2, 0, -1, -1], [-2, 0, -1, 0], [-2, 1, -2, 2], [-2, 1, -1, 0], [-2, 1, -1, 1], [-2, 2, -2, 3], [-2, 2, -1, 1], [-2, 2, -1, 2], [-2, 3, -1, 2], [-2, 3, -1, 3], [-1, -2, -1, -1], [-1, -2, 0, -3], [-1, -2, 0, -2], [-1, -1, -1, 0], [-1, -1, 0, -2], [-1, -1, 0, -1], [-1, 0, -1, 1], [-1, 0, 0, -1], [-1, 0, 0, 0], [-1, 1, -1, 2], [-1, 1, 0, 0], [-1, 1, 0, 1], [-1, 2, -1, 3], [-1, 2, 0, 1], [-1, 2, 0, 2], [-1, 3, 0, 2], [-1, 3, 0, 3], [0, -3, 0, -2], [0, -3, 1, -3], [0, -2, 0, -1], [0, -2, 1, -3], [0, -2, 1, -2], [0, -1, 0, 0], [0, -1, 1, -2], [0, -1, 1, -1], [0, 0, 0, 1], [0, 0, 1, -1], [0, 0, 1, 0], [0, 1, 0, 2], [0, 1, 1, 0], [0, 1, 1, 1], [0, 2, 0, 3], [0, 2, 1, 1], [0, 2, 1, 2], [0, 3, 1, 2], [1, -3, 1, -2], [1, -3, 2, -3], [1, -2, 1, -1], [1, -2, 2, -3], [1, -2, 2, -2], [1, -1, 1, 0], [1, -1, 2, -2], [1, -1, 2, -1], [1, 0, 1, 1], [1, 0, 2, -1], [1, 0, 2, 0], [1, 1, 1, 2], [1, 1, 2, 0], [1, 1, 2, 1], [1, 2, 2, 1], [2, -3, 2, -2], [2, -3, 3, -3], [2, -2, 2, -1], [2, -2, 3, -3], [2, -2, 3, -2], [2, -1, 2, 0], [2, -1, 3, -2], [2, -1, 3, -1], [2, 0, 2, 1], [2, 0, 3, -1], [2, 0, 3, 0], [2, 1, 3, 0], [3, -3, 3, -2], [3, -2, 3, -1], [3, -1, 3, 0]];
+            const solution = solutions[Math.floor(idx / 2)];
+            const mirrored = idx % 2 == 0;
+            return {
+                reagents: [],
+                products: [drawParams(
+                    [{kind: 'gold', q: 3, r: 3}].concat(cells.map(([q, r]) => { return {kind: 'fire', q: (mirrored ? q + r : q) + 3, r: (mirrored ? -r : r) + 3}; })),
+                    bonds.map(([sq, sr, eq, er]) => {
+                        const isTriplex = solution[cells.findIndex(([q, r]) => q == sq && r == sr)] == solution[cells.findIndex(([q, r]) => q == eq && r == er)];
+                        return {start: {q: (mirrored ? sq + sr : sq) + 3, r: (mirrored ? -sr : sr) + 3}, end: {q: (mirrored ? eq + er : eq) + 3, r: (mirrored ? -er : er) + 3}, red: isTriplex, black: isTriplex, yellow: isTriplex};
+                    }),
+                )],
+            };
+        ",
     ),
     LamplightGas => "Lamplight Gas", official(Journal(99, 6), "P092"),
     LapidarySaw => "Lapidary Saw", official(Journal(108, 5), "P278"),
@@ -860,6 +1042,7 @@ puzzles! {
     Logistics => "Logistics", critelli("d18b0ff75237478b9f7d27f799222e46"),
     LookAndSay => "Look-And-Say", critelli_computation(
         "OM2024Weeklies_LookAndSay",
+        46656,
         METALS.into_iter().array_combinations_with_reps().map(|input| {
             fn look_and_say(string: [Atom; 6]) -> Vec<Atom> {
                 let mut buf = Vec::default();
@@ -882,6 +1065,37 @@ puzzles! {
                 vec![stick(&look_and_say(input))],
             ]
         }),
+        "
+            const metals = ['lead', 'tin', 'iron', 'copper', 'silver', 'gold'];
+            function lookAndSay(string) {
+                const buf = [];
+                let idx = 0;
+                while (idx < string.length) {
+                    const kind = string[idx];
+                    idx += 1;
+                    let count = 0;
+                    while (idx < string.length && string[idx] == kind) {
+                        count++;
+                        idx++;
+                    }
+                    buf.push(metals[count]);
+                    buf.push(kind);
+                }
+                return buf;
+            }
+            const input = [
+                metals[Math.floor(idx / 6 ** 5)],
+                metals[Math.floor(idx / 6 ** 4) % 6],
+                metals[Math.floor(idx / 6 ** 3) % 6],
+                metals[Math.floor(idx / 6 ** 2) % 6],
+                metals[Math.floor(idx / 6) % 6],
+                metals[idx % 6],
+            ];
+            return {
+                reagents: [stick(input)],
+                products: [stick(lookAndSay(input))],
+            };
+        ",
     ),
     LubricatingFilament => "Lubricating Filament", official(Journal(99, 3), "P065"),
     LubricatingSolvents => "Lubricating Solvents", critelli("Week_3_LubricatingSolvents"),
@@ -892,17 +1106,24 @@ puzzles! {
     Marlstone => "Marlstone", official(Journal(108, 7), "P288"),
     MartialRegulus => "Martial Regulus", critelli("OM2022Weeklies_MartialRegulus"),
     MaterialSalvage => "Material Salvage", critelli("om2025break_Material_Salvage"),
-    MemoryLane => "Memory Lane", critelli_computation(
-        "OM2025week8_Memory_Lane",
-        [Atom::Salt, Atom::Fire].into_iter().array_combinations_with_reps::<5>()
+    MemoryLane => "Memory Lane", {
+        let encoding = [Atom::Salt, Atom::Fire].into_iter().array_combinations_with_reps::<5>()
             .zip_eq(METALS.into_iter().array_combinations_with_reps::<2>().collect_vec().partial_shuffle(&mut rng(), 32).0)
             .map(|(input, output)| [
                 vec![stick(&input)],
                 vec![stick(output)],
-            ]),
-    ),
+            ])
+            .collect_vec();
+        critelli_computation(
+            "OM2025week8_Memory_Lane",
+            32,
+            encoding.clone(),
+            js_get_permutation_serverside(encoding),
+        )
+    },
     MetalCalculus => "Metal Calculus", computation(
         "https://reddit.com/r/opus_magnum/comments/flp70t/the_final_week_of_the_tournament_metal_calculus/",
+        10077696,
         METALS.into_iter().array_combinations_with_reps().map(|input| {
             fn derivative(string: [Atom; 9]) -> Vec<Atom> {
                 string.into_iter().array_windows().map(|[a, b]| match METALS.into_iter().position(|iter_atom| iter_atom == b).unwrap() as i8 - METALS.into_iter().position(|iter_atom| iter_atom == a).unwrap() as i8 {
@@ -921,6 +1142,61 @@ puzzles! {
                 vec![stick(&derivative(input))],
             ]
         }),
+        "
+            const metals = ['lead', 'tin', 'iron', 'copper', 'silver', 'gold'];
+            function derivative(string) {
+                const buf = [];
+                for (let idx = 0; idx < 8; idx++) {
+                    const diff = metals.indexOf(string[idx + 1]) - metals.indexOf(string[idx]);
+                    if (diff < -2) {
+                        buf.push('mors');
+                    } else {
+                        switch (diff) {
+                            case -2: {
+                                buf.push('earth');
+                                break;
+                            }
+                            case -1: {
+                                buf.push('water');
+                                break;
+                            }
+                            case 0: {
+                                buf.push('salt');
+                                break;
+                            }
+                            case 1: {
+                                buf.push('fire');
+                                break;
+                            }
+                            case 2: {
+                                buf.push('air');
+                                break;
+                            }
+                            default: {
+                                buf.push('vitae');
+                                break;
+                            }
+                        }
+                    }
+                }
+                return buf;
+            }
+            const input = [
+                metals[Math.floor(idx / 6 ** 8)],
+                metals[Math.floor(idx / 6 ** 7) % 6],
+                metals[Math.floor(idx / 6 ** 6) % 6],
+                metals[Math.floor(idx / 6 ** 5) % 6],
+                metals[Math.floor(idx / 6 ** 4) % 6],
+                metals[Math.floor(idx / 6 ** 3) % 6],
+                metals[Math.floor(idx / 6 ** 2) % 6],
+                metals[Math.floor(idx / 6) % 6],
+                metals[idx % 6],
+            ];
+            return {
+                reagents: [stick(input)],
+                products: [stick(derivative(input))],
+            };
+        ",
     ),
     MetalDivision => "Metal Division", official(Drm(2), "P208"),
     MetallicTincture => "Metallic Tincture", official(Drm(1), "P206"),
@@ -949,17 +1225,22 @@ puzzles! {
     PanaceaToPoison => "Panacea to Poison", zlbb("w2450511665", "https://drive.google.com/drive/folders/1-Ky7fk653U6Zr9bPgEzGDtI3QX7vVJlE"),
     ParadeRocketFuel => "Parade-Rocket Fuel", official(Appendix, "P082"),
     ParetoPoppers => "Pareto Poppers", critelli("OM2025Weeklies4_ParetoPoppers"),
-    ParticleReconstruction => "Particle Reconstruction", critelli_computation(
-        "https://events.critelli.technology/OM2023Weeklies_ParticleReconstruction",
-        [
+    ParticleReconstruction => "Particle Reconstruction", {
+        let permutations = [
             collect![as HashSet<_>: Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 1, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 1 }, end: HexIndex { q: 1, r: 0 }, ty: BondType::Normal }],
             collect![Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 0, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 1, r: 0 }, ty: BondType::Normal }],
             collect![Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 0, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 1 }, end: HexIndex { q: 1, r: 0 }, ty: BondType::Normal }],
         ].into_iter().map(|bonds| [
             vec![Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Earth, HexIndex { q: 0, r: 1 } => Atom::Water, HexIndex { q: 1, r: 0 } => Atom::Fire], bonds: bonds.clone() }],
             vec![Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Earth, HexIndex { q: 0, r: 1 } => Atom::Water, HexIndex { q: 1, r: 0 } => Atom::Fire], bonds }],
-        ]),
-    ),
+        ]).collect_vec();
+        critelli_computation(
+            "https://events.critelli.technology/OM2023Weeklies_ParticleReconstruction",
+            3,
+            permutations.clone(),
+            js_get_permutation_serverside(permutations),
+        )
+    },
     PassThroughAlloy => "Pass-Through Alloy", critelli("OM2025week7_Pass-Through_Alloy"),
     PatternMetal => "Pattern Metal", official(Drm(3), "P221"),
     PhilosophersCatalyst => "Philosopher's Catalyst", critelli("OM2022Weeklies_PhiloCatalyst"),
@@ -1060,10 +1341,19 @@ puzzles! {
     TemperedGlass => "Tempered Glass", official(Journal(108, 10), "P301"),
     TheAmazingEverythingMachine => "The Amazing Everything-Machine", critelli_computation(
         "OM2025week4_The_Amazing_Everything-Machine",
+        10,
         CARDINALS.into_iter().chain(METALS).map(|atom| [
             vec![Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => atom], bonds: collect![] }],
             vec![Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => atom], bonds: collect![] }],
         ]),
+        "
+            const atoms = ['earth', 'air', 'water', 'fire', 'lead', 'tin', 'iron', 'copper', 'silver', 'gold'];
+            const atom = atoms[idx];
+            return {
+                reagents: [stick([atom])],
+                products: [stick([atom])],
+            };
+        ",
     ),
     ThermalFuse => "Thermal Fuse", critelli("d3689000418b9687654554f28324d8d0"),
     ThermicCapacitor => "Thermic Capacitor", critelli("om2025week2_Thermic_Capacitor"),
@@ -1073,17 +1363,23 @@ puzzles! {
     TonicOfHydration => "Tonic of Hydration", official(Journal(99, 5), "P089"),
     TonicOfTransmogrification => "Tonic of Transmogrification", critelli_computation(
         "OM2023Weeklies_TransTonic",
+        9916,
         (0..9916).map(|index| [
             vec![state_from_enumeration_index(index)],
             vec![],
         ]),
+        "
+            return {
+                reagents: [drawParamsFromState(stateForEnumerationIndex(idx))],
+                products: [],
+            };
+        ",
     ),
     TouchGrass => "Touch Grass", critelli("OM2024Weeklies_TouchGrass"),
     Touchstone => "Touchstone (2024 tournament)", critelli("6f37903681423b320da82fb57900291d"),
     TouchstoneJournal => "Touchstone (Journal issue X)", official(Journal(99, 10), "P245"),
-    Transmutation110 => "Transmutation CX", critelli_computation(
-        "Week_9_TransmutationCX",
-        all().array_combinations_with_reps().map(|[a, b, c, d, e, f]| {
+    Transmutation110 => "Transmutation CX", {
+        let permutations = all().array_combinations_with_reps().map(|[a, b, c, d, e, f]| {
             fn i(cond: bool) -> Atom {
                 if cond { Atom::Fire } else { Atom::Salt }
             }
@@ -1105,17 +1401,30 @@ puzzles! {
                 vec![Molecule { atoms: collect![HexIndex { q: 0, r: 1 } => i(f), HexIndex { q: 0, r: 2 } => i(e), HexIndex { q: 1, r: 0 } => i(a), HexIndex { q: 1, r: 1 } => Atom::Gold, HexIndex { q: 1, r: 2 } => i(d), HexIndex { q: 2, r: 0 } => i(b), HexIndex { q: 2, r: 1 } => i(c)], bonds: collect![Bond { start: HexIndex { q: 0, r: 1 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 2 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 0 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 1 }, end: HexIndex { q: 1, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 1 }, end: HexIndex { q: 2, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 1 }, end: HexIndex { q: 2, r: 1 }, ty: BondType::Normal }] }],
                 vec![Molecule { atoms: collect![HexIndex { q: 0, r: 1 } => o(e, f, a), HexIndex { q: 0, r: 2 } => o(d, e, f), HexIndex { q: 1, r: 0 } => o(f, a, b), HexIndex { q: 1, r: 1 } => Atom::Gold, HexIndex { q: 1, r: 2 } => o(c, d, e), HexIndex { q: 2, r: 0 } => o(a, b, c), HexIndex { q: 2, r: 1 } => o(b, c, d)], bonds: collect![Bond { start: HexIndex { q: 0, r: 1 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 2 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 0 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 1 }, end: HexIndex { q: 1, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 1 }, end: HexIndex { q: 2, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 1 }, end: HexIndex { q: 2, r: 1 }, ty: BondType::Normal }] }],
             ]
-        }),
-    ),
+        }).collect_vec();
+        critelli_computation(
+            "Week_9_TransmutationCX",
+            64,
+            permutations.clone(),
+            js_get_permutation_serverside(permutations),
+        )
+    },
     UmbralMascara => "Umbral Mascara", official(Journal(108, 8), "P292"),
     UniversalCompound => "Universal Compound", official(Journal(99, 4), "P072"),
     UniversalSolvent => "Universal Solvent", official(Campaign(5), "P043"),
     UnnamedCustomPuzzle => "Unnamed Custom Puzzle", critelli_computation(
         "https://events.critelli.technology/OM2025Weeklies12_Unnamed",
+        9916,
         (0..9916).map(|index| [
             vec![state_from_enumeration_index(index)],
             vec![state_from_enumeration_index(index)],
         ]),
+        "
+            return {
+                reagents: [drawParamsFromState(stateForEnumerationIndex(idx))],
+                products: [drawParamsFromState(stateForEnumerationIndex(idx))],
+            };
+        ",
     ),
     UnstableCompound => "Unstable Compound", official(Campaign(5), "P040"),
     UnstableSovrium => "Unstable Sovrium", critelli("OM2024Weeklies_UnstableSovrium"),
@@ -1148,6 +1457,7 @@ puzzles! {
     WeldingThermite => "Welding Thermite", official(Journal(99, 6), "P094"),
     WheelInversion => "Wheel Inversion", computation(
         "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/",
+        15625,
         CARDINALS.into_iter().chain(iter::once(Atom::Salt)).array_combinations_with_reps().map(|[a, b, c, d, e, f]| {
             fn invert(atom: Atom) -> Atom {
                 match atom {
@@ -1164,6 +1474,28 @@ puzzles! {
                 vec![Molecule { atoms: collect![HexIndex { q: 0, r: 1 } => invert(a), HexIndex { q: 0, r: 2 } => invert(b), HexIndex { q: 1, r: 0 } => invert(c), HexIndex { q: 1, r: 1 } => Atom::Gold, HexIndex { q: 1, r: 2 } => invert(d), HexIndex { q: 2, r: 0 } => invert(e), HexIndex { q: 2, r: 1 } => invert(f)], bonds: collect![Bond { start: HexIndex { q: 0, r: 1 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 2 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 0 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 1 }, end: HexIndex { q: 1, r: 2 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 1 }, end: HexIndex { q: 2, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 1 }, end: HexIndex { q: 2, r: 1 }, ty: BondType::Normal }] }],
             ]
         }),
+        "
+            const atoms = ['earth', 'air', 'water', 'fire', 'salt'];
+            const a = atoms[Math.floor(idx / 5 ** 5)];
+            const b = atoms[Math.floor(idx / 5 ** 4) % 5];
+            const c = atoms[Math.floor(idx / 5 ** 3) % 5];
+            const d = atoms[Math.floor(idx / 5 ** 2) % 5];
+            const e = atoms[Math.floor(idx / 5) % 5];
+            const f = atoms[idx % 5];
+            function invert(atom) {
+                switch (atom) {
+                    case 'earth': return 'air';
+                    case 'air': return 'earth';
+                    case 'water': return 'fire';
+                    case 'fire': return 'water';
+                    default: return atom;
+                }
+            }
+            return {
+                reagents: [drawParams([{kind: a, q: 0, r: 1}, {kind: b, q: 0, r: 2}, {kind: c, q: 1, r: 0}, {kind: 'gold', q: 1, r: 1}, {kind: d, q: 1, r: 2}, {kind: e, q: 2, r: 0}, {kind: f, q: 2, r: 1}], [{start: {q: 0, r: 1}, end: {q: 1, r: 1}, red: false, black: false, yellow: false}, {start: {q: 0, r: 2}, end: {q: 1, r: 1}, red: false, black: false, yellow: false}, {start: {q: 1, r: 0}, end: {q: 1, r: 1}, red: false, black: false, yellow: false}, {start: {q: 1, r: 1}, end: {q: 1, r: 2}, red: false, black: false, yellow: false}, {start: {q: 1, r: 1}, end: {q: 2, r: 0}, red: false, black: false, yellow: false}, {start: {q: 1, r: 1}, end: {q: 2, r: 1}, red: false, black: false, yellow: false}])],
+                products: [drawParams([{kind: invert(a), q: 0, r: 1}, {kind: invert(b), q: 0, r: 2}, {kind: invert(c), q: 1, r: 0}, {kind: 'gold', q: 1, r: 1}, {kind: invert(d), q: 1, r: 2}, {kind: invert(e), q: 2, r: 0}, {kind: invert(f), q: 2, r: 1}], [{start: {q: 0, r: 1}, end: {q: 1, r: 1}, red: false, black: false, yellow: false}, {start: {q: 0, r: 2}, end: {q: 1, r: 1}, red: false, black: false, yellow: false}, {start: {q: 1, r: 0}, end: {q: 1, r: 1}, red: false, black: false, yellow: false}, {start: {q: 1, r: 1}, end: {q: 1, r: 2}, red: false, black: false, yellow: false}, {start: {q: 1, r: 1}, end: {q: 2, r: 0}, red: false, black: false, yellow: false}, {start: {q: 1, r: 1}, end: {q: 2, r: 1}, red: false, black: false, yellow: false}])],
+            };
+        ",
     ),
     WheelRepresentation => "Wheel Representation", official(Journal(99, 4), "P070"),
     WireFormingAndUnforming => "Wire Forming and Unforming", zlbb("w1698784331", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/"),
