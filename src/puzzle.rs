@@ -1238,7 +1238,7 @@ puzzles! {
             vec![Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Earth, HexIndex { q: 0, r: 1 } => Atom::Water, HexIndex { q: 1, r: 0 } => Atom::Fire], bonds }],
         ]).collect_vec();
         critelli_computation(
-            "https://events.critelli.technology/OM2023Weeklies_ParticleReconstruction",
+            "OM2023Weeklies_ParticleReconstruction",
             3,
             permutations.clone(),
             js_get_permutation_serverside(permutations),
@@ -1418,7 +1418,7 @@ puzzles! {
     UniversalCompound => "Universal Compound", official(Journal(99, 4), "P072"),
     UniversalSolvent => "Universal Solvent", official(Campaign(5), "P043"),
     UnnamedCustomPuzzle => "Unnamed Custom Puzzle", critelli_computation(
-        "https://events.critelli.technology/OM2025Weeklies12_Unnamed",
+        "OM2025Weeklies12_Unnamed",
         9916,
         (0..9916).map(|index| [
             vec![state_from_enumeration_index(index)],
