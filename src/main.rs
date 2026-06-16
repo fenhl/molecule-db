@@ -594,7 +594,7 @@ async fn static_page(config: &Config, http_client: &reqwest::Client, if_none_mat
         if let Some(git_commit_hash) = GIT_COMMIT_HASH {
             StaticPageResponse::Stale {
                 cache_control: Header::new(rocket::http::hyper::header::CACHE_CONTROL.as_str(), "no-cache"), // ensure etag is validated on each request
-                etag: Header::new(rocket::http::hyper::header::ETAG.as_str(), git_commit_hash.to_string()),
+                etag: Header::new(rocket::http::hyper::header::ETAG.as_str(), format!("\"{git_commit_hash}\"")),
                 body,
             }
         } else {
