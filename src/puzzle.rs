@@ -44,13 +44,15 @@ use {
     crate::{
         Config,
         Error,
+        IfNoneMatch,
         MoleculeExt as _,
+        StaticPageResponse,
         Tab,
         external_link,
         molecules,
-        page,
         puzzle::OfficialCollection::*,
         proto::FormMolecule,
+        static_page,
     },
 };
 
@@ -268,8 +270,8 @@ impl uri::fmt::UriDisplay<uri::fmt::Path> for Puzzle {
 impl_from_uri_param_identity!([uri::fmt::Path] Puzzle);
 
 #[rocket::get("/puzzle")]
-pub(crate) async fn index(config: &State<Config>, http_client: &State<reqwest::Client>) -> RawHtml<String> {
-    page(config, http_client, Tab::Puzzles, false, "Puzzles — Opus Magnum Molecule Database", html! {
+pub(crate) async fn index(config: &State<Config>, http_client: &State<reqwest::Client>, if_none_match: IfNoneMatch<'_>) -> StaticPageResponse {
+    static_page(config, http_client, if_none_match, Tab::Puzzles, false, "Puzzles — Opus Magnum Molecule Database", html! {
         ul {
             @for puzzle in all::<Puzzle>() {
                 li {
@@ -281,8 +283,8 @@ pub(crate) async fn index(config: &State<Config>, http_client: &State<reqwest::C
 }
 
 #[rocket::get("/puzzle/<puzzle>")]
-pub(crate) async fn get(config: &State<Config>, http_client: &State<reqwest::Client>, puzzle: Puzzle) -> Result<RawHtml<String>, Error> {
-    Ok(page(config, http_client, Tab::Puzzles, true, html! {
+pub(crate) async fn get(config: &State<Config>, http_client: &State<reqwest::Client>, if_none_match: IfNoneMatch<'_>, puzzle: Puzzle) -> Result<StaticPageResponse, Error> {
+    Ok(static_page(config, http_client, if_none_match, Tab::Puzzles, true, html! {
         : puzzle;
         : " — Opus Magnum Molecule Database";
     }, html! {

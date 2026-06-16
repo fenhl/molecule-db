@@ -34,11 +34,13 @@ use {
     },
     reqwest as _, // gix TLS backend config
     rocket::{
+        Responder,
         State,
         data::ToByteUnit as _,
         form,
         fs::FileServer,
         http::{
+            Header,
             Status,
             impl_from_uri_param_identity,
             uri::fmt::{
@@ -46,6 +48,12 @@ use {
                 Query,
                 UriDisplay,
             },
+        },
+        outcome::Outcome,
+        request::{
+            self,
+            FromRequest,
+            Request,
         },
         response::content::RawHtml,
         serde::json::Json,
@@ -97,6 +105,7 @@ use {
 };
 
 include!(concat!(env!("OUT_DIR"), "/static_files.rs"));
+include!(concat!(env!("OUT_DIR"), "/version.rs"));
 
 mod molecules;
 mod proto;
@@ -439,45 +448,157 @@ impl Tab {
     }
 }
 
-async fn page(config: &Config, http_client: &reqwest::Client, tab: Tab, is_subpage: bool, title: impl ToHtml, content: impl ToHtml, scripts: impl ToHtml) -> RawHtml<String> {
-    html! {
-        : Doctype;
-        html {
-            head {
-                meta(charset = "utf-8");
-                title : title;
-                meta(name = "viewport", content = "width=device-width, initial-scale=1, shrink-to-fit=no");
-                link(rel = "icon", href = static_url!("favicon.svg"));
-                link(rel = "stylesheet", href = static_url!("common.css"));
-                script(src = static_url!("common.js"));
-            }
-            body {
-                nav {
-                    @for iter_tab in all::<Tab>() {
-                        a(class = if tab == iter_tab { "button selected" } else { "button" }, href? = (tab != iter_tab || is_subpage).then(|| iter_tab.uri())) : iter_tab.label();
+struct Etag<'a> {
+    #[allow(unused)]
+    weak: bool,
+    content: &'a str,
+}
+
+impl<'a> From<&'a str> for Etag<'a> {
+    fn from(content: &'a str) -> Self {
+        Self {
+            weak: false,
+            content,
+        }
+    }
+}
+
+enum IfNoneMatch<'a> {
+    Any,
+    Specific(Vec<Etag<'a>>),
+}
+
+impl IfNoneMatch<'_> {
+    fn matches<'b>(&self, etag: impl Into<Etag<'b>>) -> bool {
+        let etag = etag.into();
+        match self {
+            Self::Any => true,
+            Self::Specific(etags) => etags.iter().any(|iter_etag| etag.content == iter_etag.content), // A recipient MUST use the weak comparison function when comparing entity tags for If-None-Match (https://httpwg.org/specs/rfc9110.html#rfc.section.13.1.2)
+        }
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+enum IfNoneMatchError {
+    #[error("received both wildcard and specific If-None-Match values")]
+    AnyAndSpecific,
+    #[error("unexpected end of If-None-Match header")]
+    EarlyEnd,
+    #[error("unexpected character in If-None-Match header")]
+    Parse(char),
+}
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for IfNoneMatch<'r> {
+    type Error = IfNoneMatchError;
+
+    async fn from_request(req: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {
+        let mut any = false;
+        let mut buf = Vec::default();
+        for mut rest in req.headers().get(rocket::http::hyper::header::IF_NONE_MATCH.as_str()) {
+            if rest == "*" {
+                any = true;
+            } else {
+                while let Some(c) = rest.chars().next() {
+                    match c {
+                        'W' => {
+                            let mut chars = rest.chars().skip(1);
+                            match chars.next() {
+                                None => return Outcome::Error((Status::BadRequest, IfNoneMatchError::EarlyEnd)),
+                                Some('/') => {}
+                                Some(c) => return Outcome::Error((Status::BadRequest, IfNoneMatchError::Parse(c)))
+                            }
+                            match chars.next() {
+                                None => return Outcome::Error((Status::BadRequest, IfNoneMatchError::EarlyEnd)),
+                                Some('"') => {}
+                                Some(c) => return Outcome::Error((Status::BadRequest, IfNoneMatchError::Parse(c)))
+                            }
+                            let Some((content, new_rest)) = rest[3..].split_once('"') else { return Outcome::Error((Status::BadRequest, IfNoneMatchError::EarlyEnd)) };
+                            buf.push(Etag { weak: true, content });
+                            rest = new_rest;
+                        }
+                        '"' => {
+                            let Some((content, new_rest)) = rest[1..].split_once('"') else { return Outcome::Error((Status::BadRequest, IfNoneMatchError::EarlyEnd)) };
+                            buf.push(Etag { weak: true, content });
+                            rest = new_rest;
+                        }
+                        ' ' | '\t' | ',' => rest = &rest[1..],
+                        _ => return Outcome::Error((Status::BadRequest, IfNoneMatchError::Parse(c))),
                     }
                 }
-                : content;
-                footer(class = "muted") {
-                    hr;
-                    p {
-                        : "Opus Magnum molecule database hosted by ";
-                        : external_link(config, http_client, "https://fenhl.net/", "Fenhl").await.unwrap();
-                        : " • ";
-                        : external_link(config, http_client, "https://fenhl.net/disc", "disclaimer").await.unwrap();
-                        : " • ";
-                        : external_link(config, http_client, "https://status.fenhl.net/", "status").await.unwrap();
-                        : " • ";
-                        : external_link(config, http_client, "https://github.com/fenhl/molecule-db", "source code").await.unwrap();
-                    }
-                    p {
-                        : "Special thanks to panic whose ";
-                        : external_link(config, http_client, "http://critelli.technology/transmogrification.html", "Tonic of Transmogrification reagent builder").await.unwrap();
-                        : " served as the basis for parts of this website's code!";
-                    }
-                }
-                : scripts;
             }
+        }
+        match (any, buf.is_empty()) {
+            (false, _) => Outcome::Success(Self::Specific(buf)),
+            (true, false) => Outcome::Success(Self::Any),
+            (true, true) => Outcome::Error((Status::BadRequest, IfNoneMatchError::AnyAndSpecific)),
+        }
+    }
+}
+
+#[derive(Responder)]
+enum StaticPageResponse {
+    Fresh((Status, ())),
+    Stale {
+        body: RawHtml<String>,
+        cache_control: Header<'static>,
+        etag: Header<'static>,
+    },
+    Untagged(RawHtml<String>),
+}
+
+async fn static_page(config: &Config, http_client: &reqwest::Client, if_none_match: IfNoneMatch<'_>, tab: Tab, is_subpage: bool, title: impl ToHtml, content: impl ToHtml, scripts: impl ToHtml) -> StaticPageResponse {
+    if GIT_COMMIT_HASH.is_some_and(|git_commit_hash| if_none_match.matches(&*git_commit_hash.to_string())) {
+        StaticPageResponse::Fresh((Status::NotModified, ()))
+    } else {
+        let body = html! {
+            : Doctype;
+            html {
+                head {
+                    meta(charset = "utf-8");
+                    title : title;
+                    meta(name = "viewport", content = "width=device-width, initial-scale=1, shrink-to-fit=no");
+                    link(rel = "icon", href = static_url!("favicon.svg"));
+                    link(rel = "stylesheet", href = static_url!("common.css"));
+                    script(src = static_url!("common.js"));
+                }
+                body {
+                    nav {
+                        @for iter_tab in all::<Tab>() {
+                            a(class = if tab == iter_tab { "button selected" } else { "button" }, href? = (tab != iter_tab || is_subpage).then(|| iter_tab.uri())) : iter_tab.label();
+                        }
+                    }
+                    : content;
+                    footer(class = "muted") {
+                        hr;
+                        p {
+                            : "Opus Magnum molecule database hosted by ";
+                            : external_link(config, http_client, "https://fenhl.net/", "Fenhl").await.unwrap();
+                            : " • ";
+                            : external_link(config, http_client, "https://fenhl.net/disc", "disclaimer").await.unwrap();
+                            : " • ";
+                            : external_link(config, http_client, "https://status.fenhl.net/", "status").await.unwrap();
+                            : " • ";
+                            : external_link(config, http_client, "https://github.com/fenhl/molecule-db", "source code").await.unwrap();
+                        }
+                        p {
+                            : "Special thanks to panic whose ";
+                            : external_link(config, http_client, "http://critelli.technology/transmogrification.html", "Tonic of Transmogrification reagent builder").await.unwrap();
+                            : " served as the basis for parts of this website's code!";
+                        }
+                    }
+                    : scripts;
+                }
+            }
+        };
+        if let Some(git_commit_hash) = GIT_COMMIT_HASH {
+            StaticPageResponse::Stale {
+                cache_control: Header::new(rocket::http::hyper::header::CACHE_CONTROL.as_str(), "no-cache"), // ensure etag is validated on each request
+                etag: Header::new(rocket::http::hyper::header::ETAG.as_str(), git_commit_hash.to_string()),
+                body,
+            }
+        } else {
+            StaticPageResponse::Untagged(body)
         }
     }
 }
@@ -488,7 +609,7 @@ enum IndexError {
 }
 
 #[rocket::get("/?<m>&<b>")]
-async fn index(config: &State<Config>, http_client: &State<reqwest::Client>, m: Option<FormMolecule>, b: Option<NonZero<u8>>) -> Result<RawHtml<String>, IndexError> {
+async fn index(config: &State<Config>, http_client: &State<reqwest::Client>, if_none_match: IfNoneMatch<'_>, m: Option<FormMolecule>, b: Option<NonZero<u8>>) -> Result<StaticPageResponse, IndexError> {
     let (js_state, min_radius, radius, molecule_too_large) = if let Some(FormMolecule(molecule)) = m.clone() {
         match JsState::new(molecule, b) {
             Ok((js_state, min_radius)) => (Some(js_state), min_radius, b.unwrap_or_else(|| min_radius.max(NonZero::new(5).unwrap())), false),
@@ -497,7 +618,7 @@ async fn index(config: &State<Config>, http_client: &State<reqwest::Client>, m: 
     } else {
         (None, NonZero::<u8>::MIN, b.unwrap_or_else(|| NonZero::new(5).unwrap()), false)
     };
-    Ok(page(config, http_client, Tab::MoleculeInput, false, "Opus Magnum Molecule Database", html! {
+    Ok(static_page(config, http_client, if_none_match, Tab::MoleculeInput, false, "Opus Magnum Molecule Database", html! {
         main(style = "flex-direction: column;") {
             @if molecule_too_large {
                 div(class = "emphasized-section") : "molecule does not fit onto canvas";
@@ -782,8 +903,8 @@ fn molecule_from_state_v4(state: Json<JsState>) -> Result<Json<MoleculeResponseV
 }
 
 #[rocket::get("/molecules")]
-async fn molecules_list(config: &State<Config>, http_client: &State<reqwest::Client>) -> RawHtml<String> {
-    page(config, http_client, Tab::MoleculeList, false, "Opus Magnum Molecule Database", html! {
+async fn molecules_list(config: &State<Config>, http_client: &State<reqwest::Client>, if_none_match: IfNoneMatch<'_>) -> StaticPageResponse {
+    static_page(config, http_client, if_none_match, Tab::MoleculeList, false, "Opus Magnum Molecule Database", html! {
         main {
             @for (idx, (molecule, appearances)) in molecules::molecules().into_iter().sorted_by_key(|(_, appearances)| {
                 let mut names = appearances.iter().filter_map(|(_, _, _, name)| *name).collect_vec();

@@ -87,6 +87,9 @@ fn main() -> Result<(), Error> {
     let static_dir = Path::new("assets").join("static");
     match gix::open(&env::var_os("CARGO_MANIFEST_DIR").unwrap()) {
         Ok(repo) => {
+            let mut out_f = File::create(Path::new(&env::var_os("OUT_DIR").unwrap()).join("version.rs")).unwrap();
+            let commit_hash = repo.head_id().unwrap();
+            writeln!(&mut out_f, "pub const GIT_COMMIT_HASH: Option<gix::ObjectId> = Some(gix::ObjectId::Sha1([{:#x}]));", commit_hash.as_bytes().iter().format(", ")).unwrap();
             let mut cache = HashMap::default();
             for entry in fs::read_dir(&static_dir)? {
                 let entry = entry?;
@@ -108,6 +111,8 @@ fn main() -> Result<(), Error> {
             writeln!(&mut out_f, "}}")?;
         }
         Err(gix::open::Error::NotARepository { .. }) => {
+            let mut out_f = File::create(Path::new(&env::var_os("OUT_DIR").unwrap()).join("version.rs")).unwrap();
+            writeln!(&mut out_f, "pub const GIT_COMMIT_HASH: Option<gix::ObjectId> = None;").unwrap();
             let mut cache = HashSet::default();
             for entry in fs::read_dir(&static_dir)? {
                 let entry = entry?;
