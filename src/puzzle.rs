@@ -770,7 +770,7 @@ puzzles! {
     BlastCordage => "Blast Cordage", official(Journal(108, 9), "P299"),
     BloodStanchingPowder => "Blood-Stanching Powder", official(Journal(99, 5), "P087"),
     BlueVitriol => "Blue Vitriol (2024 tournament)", critelli("bb94e99e5b9f4d14791f50e953e6f2bb"),
-    BlueVitriolJournal => "Blue Vitriol (Journal issue XI)", official(Journal(99, 11), "P241"),
+    BlueVitriolJournal => "Blue Vitriol (journal)", official(Journal(99, 11), "P241"),
     Boozesort => "Boozesort", critelli_computation(
         "OM2025Weeklies8_Boozesort",
         81,
@@ -834,7 +834,7 @@ puzzles! {
     CrystallizedAir => "Crystallized Air", critelli("OM2025week5_Crystallized_Air"),
     CultivationTonic => "Cultivation Tonic", official(Journal(99, 10), "P249"),
     Cuprite => "Cuprite (2022 weeklies)", critelli("OM2022Weeklies_Cuprite"),
-    CupriteJournal => "Cuprite (Journal issue XII)", official(Journal(99, 12), "P253"),
+    CupriteJournal => "Cuprite (journal)", official(Journal(99, 12), "P253"),
     CuqueritePromotion => "Cuquerite Promotion", critelli("af91511ae10c69e531d347ad8656e594"),
     CuriousLipstick => "Curious Lipstick", official(Campaign(5), "P041"),
     DarkMatterCandidate => "Dark Matter Candidate", critelli("OM2023Weeklies_DarkMatterCandidate"),
@@ -842,7 +842,7 @@ puzzles! {
     DeepFriedUnstableCompound => "Deep-Fried Unstable Compound", critelli("OM2024Weeklies_BSides_DeepFriedUnstableCompound"),
     DehydratedWater => "Dehydrated Water", critelli("OM2022Weeklies_DehydratedWater"),
     DentalAmalgam => "Dental Amalgam (2024 tournament)", critelli("c3dda33075913461bebd7cd7c8759669"),
-    DentalAmalgamJournal => "Dental Amalgam (Journal issue XII)", official(Journal(99, 12), "P252"),
+    DentalAmalgamJournal => "Dental Amalgam (journal)", official(Journal(99, 12), "P252"),
     DestabilizedNature => "Destabilized Nature", critelli("683142751f1988e34bb824ac9302ed20"),
     DoYouRemember => "Do You Remember", zlbb("w1698787731", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/"),
     DurableStitching => "Durable Stitching", official(Journal(108, 9), "P296"),
@@ -929,7 +929,7 @@ puzzles! {
     GlorpsConstruct => "Glorp's Construct", critelli("b721b7ba8e14db667d5ea374eaca9a9e"),
     GoldenThread => "Golden Thread", official(Campaign(4), "P037"),
     GreenVitriol => "Green Vitriol (2021 weeklies)", zlbb("w2539581468", "https://discord.com/channels/278707932089155584/296373951800541186/859612178902286376"),
-    GreenVitriolJournal => "Green Vitriol (Journal issue XI)", official(Journal(99, 11), "P240"),
+    GreenVitriolJournal => "Green Vitriol (journal)", official(Journal(99, 11), "P240"),
     GrenadePellet => "Grenade Pellet", official(Journal(108, 1), "P259"),
     Grindstone => "Grindstone", official(Journal(108, 11), "P305"),
     Gunmetal => "Gunmetal", official(Journal(108, 4), "P272"),
@@ -1322,7 +1322,7 @@ puzzles! {
     SolderWire => "Solder Wire", official(Drm(2), "P209"),
     SoothingSalve => "Soothing Salve", critelli("Week_2_SoothingSalve"),
     SophickMercury => "Sophick Mercury (2024 weeklies)", critelli("OM2024Weeklies_SophickMercury"),
-    SophickMercuryJournal => "Sophick Mercury (Journal issue XII)", official(Journal(99, 12), "P250"),
+    SophickMercuryJournal => "Sophick Mercury (journal)", official(Journal(99, 12), "P250"),
     SparkingPyrite => "Sparking Pyrite", official(Journal(108, 4), "P274"),
     SpecialAmaro => "Special Amaro", official(Appendix, "P083"),
     SpyglassCrystal => "Spyglass Crystal", official(Journal(99, 2), "P063"),
@@ -1384,7 +1384,7 @@ puzzles! {
     ),
     TouchGrass => "Touch Grass", critelli("OM2024Weeklies_TouchGrass"),
     Touchstone => "Touchstone (2024 tournament)", critelli("6f37903681423b320da82fb57900291d"),
-    TouchstoneJournal => "Touchstone (Journal issue X)", official(Journal(99, 10), "P245"),
+    TouchstoneJournal => "Touchstone (journal)", official(Journal(99, 10), "P245"),
     Transmutation110 => "Transmutation CX", {
         let permutations = all().array_combinations_with_reps().map(|[a, b, c, d, e, f]| {
             fn i(cond: bool) -> Atom {
