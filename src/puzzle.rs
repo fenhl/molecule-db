@@ -1353,7 +1353,7 @@ puzzles! {
     SophickMercuryJournal => "Sophick Mercury (journal)", official(Journal(99, 12, &["Il Sichay, V.", "Nick, P. A."]), "P250"),
     SparkingPyrite => "Sparking Pyrite", official(Journal(108, 4, &["Azur, I."]), "P274"),
     SpecialAmaro => "Special Amaro", official(Appendix, "P083"),
-    SpyglassCrystal => "Spyglass Crystal", official(Journal(99, 2, &["Brukcner, J."]), "P063"),
+    SpyglassCrystal => "Spyglass Crystal", official(Journal(99, 2, &["Bruckner, J."]), "P063"),
     StabilizedEverything => "Stabilized Everything", other("https://discord.com/channels/278707932089155584/296373951800541186/882448331119427604"),
     StabilizedGold => "Stabilized Gold", critelli("OM2022Weeklies_StabilizedGold"),
     StabilizedWater => "Stabilized Water", official(Prologue, "P007"),
