@@ -56,6 +56,7 @@ itermore = { version = "0.8", features = ["array_combinations_with_reps", "array
 itertools = "0.14"
 lazy-regex = "3"
 mimalloc = "0.1"
+nonempty-collections = "1"
 omsim-rs = { git = "https://github.com/fenhl/omsim-rs" }
 rand = "0.10"
 reqwest = { version = "0.13", default-features = false, features = ["hickory-dns", "rustls-no-provider"] }
