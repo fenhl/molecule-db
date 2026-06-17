@@ -806,7 +806,9 @@ puzzles! {
         ",
     ),
     BrazingCathode => "Brazing Cathode", critelli("OM2022Weeklies_BrazingCathode"),
+    BrazingSilver => "Brazing Silver", official(Journal(108, 12), "P310"),
     BreathableFluid => "Breathable Fluid", critelli("OM2024Weeklies_BreathableFluid"),
+    BrilliantPigment => "Brilliant Pigment", official(Journal(108, 12), "P311"),
     BulkTransmutation => "Bulk Transmutation", critelli("OM2025week6_Bulk_Transmutation"),
     BuoyantCable => "Buoyant Cable", official(Journal(99, 2), "P062"),
     BurningSpiritOfSaturn => "Burning Spirit of Saturn", critelli("d3f9ca519aacb2d782a5388098299acd"),
@@ -932,6 +934,7 @@ puzzles! {
     GreenVitriolJournal => "Green Vitriol (journal)", official(Journal(99, 11), "P240"),
     GrenadePellet => "Grenade Pellet", official(Journal(108, 1), "P259"),
     Grindstone => "Grindstone", official(Journal(108, 11), "P305"),
+    GuipureLace => "Guipure Lace", official(Journal(108, 12), "P312"),
     Gunmetal => "Gunmetal", official(Journal(108, 4), "P272"),
     HabitabilityDetector => "Habitability Detector", critelli_computation(
         "OM2023_W8_HabitabilityDetector",
@@ -1026,6 +1029,7 @@ puzzles! {
     ),
     LamplightGas => "Lamplight Gas", official(Journal(99, 6), "P092"),
     LapidarySaw => "Lapidary Saw", official(Journal(108, 5), "P278"),
+    LapisSolaris => "Lapis Solaris", official(Journal(108, 12), "P313"),
     LatchHookFireworks => "Latch-Hook Fireworks", critelli("638f26965e21b260086e1919b264eab5"),
     LeachingAgent => "Leaching Agent", official(Journal(108, 2), "P263"),
     LeaveNoTrace => "Leave No Trace", critelli("Week_0_LeaveNoTrace"),
@@ -1418,6 +1422,7 @@ puzzles! {
     },
     UmbralMascara => "Umbral Mascara", official(Journal(108, 8), "P292"),
     UniversalCompound => "Universal Compound", official(Journal(99, 4), "P072"),
+    UniversalOintment => "Universal Ointment", official(Journal(108, 12), "P314"),
     UniversalSolvent => "Universal Solvent", official(Campaign(5), "P043"),
     UnnamedCustomPuzzle => "Unnamed Custom Puzzle", critelli_computation(
         "OM2025Weeklies12_Unnamed",
