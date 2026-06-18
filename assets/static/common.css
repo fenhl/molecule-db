@@ -117,6 +117,10 @@ main > div,
 .row > div {
     margin: 0 10px;
 }
+ul {
+    list-style: none;
+    padding-inline-start: 0;
+}
 .muted {
     color: light-dark(#445, #bbbbc2);
 }
