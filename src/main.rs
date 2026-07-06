@@ -107,6 +107,7 @@ use {
 include!(concat!(env!("OUT_DIR"), "/static_files.rs"));
 include!(concat!(env!("OUT_DIR"), "/version.rs"));
 
+mod metric;
 mod molecules;
 mod proto;
 mod puzzle;
@@ -495,7 +496,7 @@ impl<'r> FromRequest<'r> for IfNoneMatch<'r> {
     async fn from_request(req: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {
         let mut any = false;
         let mut buf = Vec::default();
-        for mut rest in req.headers().get(rocket::http::hyper::header::IF_NONE_MATCH.as_str()) {
+        for mut rest in req.headers().get(http::header::IF_NONE_MATCH.as_str()) {
             if rest == "*" {
                 any = true;
             } else {
@@ -593,8 +594,8 @@ async fn static_page(config: &Config, http_client: &reqwest::Client, if_none_mat
         };
         if let Some(git_commit_hash) = GIT_COMMIT_HASH {
             StaticPageResponse::Stale {
-                cache_control: Header::new(rocket::http::hyper::header::CACHE_CONTROL.as_str(), "no-cache"), // ensure etag is validated on each request
-                etag: Header::new(rocket::http::hyper::header::ETAG.as_str(), format!("\"{git_commit_hash}\"")),
+                cache_control: Header::new(http::header::CACHE_CONTROL.as_str(), "no-cache"), // ensure etag is validated on each request
+                etag: Header::new(http::header::ETAG.as_str(), format!("\"{git_commit_hash}\"")),
                 body,
             }
         } else {
@@ -1009,22 +1010,11 @@ async fn main(Args { subcommand }: Args) -> Result<(), Error> {
                 'puzzles: for puzzle in all::<Puzzle>() {
                     let omsim_rs::data::Puzzle { reagents, products, .. } = parse_puzzle(&match puzzle.source() {
                         puzzle::Source::Tutorial | puzzle::Source::OfficialNonLb { .. } | puzzle::Source::Computation { .. } | puzzle::Source::CritelliComputation { .. } => continue, // nothing to validate against
-                        puzzle::Source::Critelli { url_part } => {
+                        puzzle::Source::Critelli { url_part, .. } => {
                             let (host, port, selector) = critelli_puzzles.remove(url_part).expect(&format!("missing critelli puzzle: {url_part}"));
                             let mut tcp_client = TcpStream::connect((host, port)).await.at_unknown()?;
                             tcp_client.write_all(selector.as_ref()).await.at_unknown()?;
                             tcp_client.write_all(b"\r\n").await.at_unknown()?;
-                            let mut buf = Vec::default();
-                            tcp_client.read_to_end(&mut buf).await.at_unknown()?;
-                            buf
-                        }
-                        puzzle::Source::CritelliPrivate { url_part, file_stem } => {
-                            let mut tcp_client = TcpStream::connect(("events.critelli.technology", 70)).await.at_unknown()?;
-                            tcp_client.write_all(b"/puzzle/").await.at_unknown()?;
-                            tcp_client.write_all(url_part.as_ref()).await.at_unknown()?;
-                            tcp_client.write_all(b"/").await.at_unknown()?;
-                            tcp_client.write_all(file_stem.as_ref()).await.at_unknown()?;
-                            tcp_client.write_all(b".puzzle\r\n").await.at_unknown()?;
                             let mut buf = Vec::default();
                             tcp_client.read_to_end(&mut buf).await.at_unknown()?;
                             buf
@@ -1078,10 +1068,10 @@ async fn main(Args { subcommand }: Args) -> Result<(), Error> {
             .hickory_dns(true)
             .https_only(true)
             .build()?;
-        rocket::custom(rocket::Config {
-            port: 24821,
+        rocket::custom(rocket::Config::figment().merge(rocket::Config {
+            log_level: Some(rocket::config::Level::ERROR),
             ..rocket::Config::default()
-        })
+        }).merge(("port", 24821))) //TODO report issue for lack of typed interface to set port, see https://github.com/rwf2/Rocket/commit/fd294049c784cb52680a423616fadc29d57fa25b
         .mount("/", rocket::routes![
             index,
             molecule_from_state_v1,
@@ -1092,7 +1082,7 @@ async fn main(Args { subcommand }: Args) -> Result<(), Error> {
             puzzle::index,
             puzzle::get,
         ])
-        .mount("/static", FileServer::new("assets/static", rocket::fs::Options::None))
+        .mount("/static", FileServer::without_index("assets/static"))
         .manage(config)
         .manage(http_client)
         .launch().await?;

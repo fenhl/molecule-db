@@ -2,7 +2,7 @@
 name = "molecule-db"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.91" # nixpkgs stable
+rust-version = "1.95" # nixpkgs stable
 
 [profile.dev.build-override]
 opt-level = 3
@@ -52,6 +52,7 @@ collect-mac = "0.1"
 enum-iterator = "2"
 gix = { version = "0.83", features = ["blocking-http-transport-reqwest"] }
 gophermap = "0.1"
+http = "1"
 itermore = { version = "0.8", features = ["array_combinations_with_reps", "array_windows"] }
 itertools = "0.14"
 lazy-regex = "3"
@@ -60,7 +61,7 @@ nonempty-collections = "1"
 omsim-rs = { git = "https://github.com/fenhl/omsim-rs" }
 rand = "0.10"
 reqwest = { version = "0.13", default-features = false, features = ["hickory-dns", "rustls-no-provider"] }
-rocket = { version = "0.5", features = ["json"] }
+rocket = { git = "https://github.com/fenhl/Rocket", branch = "forms", features = ["json"] }
 rocket-util = { git = "https://github.com/fenhl/rocket-util" }
 roman-numerals = "0.4"
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
