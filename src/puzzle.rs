@@ -1143,6 +1143,7 @@ puzzles! {
     LessonTransmutation => "Lesson: Transmutation", tutorial(),
     LifeSensingPotion => "Life-Sensing Potion", official(Campaign(3), "P030b"),
     LighthouseMirror => "Lighthouse Mirror", official(Journal(108, 1, &["Servin, H."]), "P258"),
+    LiquidPerfumes => "Liquid Perfumes", critelli("OM2026Weeklies1_LiquidPerfumes"),
     LithargeSeparation => "Litharge Separation", official(Campaign(4), "P031b"),
     LocalAnaesthetic => "Local Anaesthetic", critelli("2414043fbe61ace7b2335186a998fcd8"),
     Lodestone => "Lodestone", official(Journal(108, 1, &["Critelli, Z."]), "P256"),
