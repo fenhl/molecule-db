@@ -1483,6 +1483,7 @@ puzzles! {
         (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::AreaV, Metric::Instructions, Metric::Cost])),
     ]),
     SurrenderFlare => "Surrender Flare", official(Campaign(2), "P022"),
+    SurrendierFlareSalt => "Surrendier Flare Salt", critelli("a77d68acaa9f0bb53a022686d5638983"),
     SurveyingMagnet => "Surveying Magnet", official(Journal(108, 2, &["Warden, I."]), "P262"),
     SuspiciouslyStableSubstance => "Suspiciously Stable Substance", critelli("OM2022Weeklies_SSS"),
     SutureThread => "Suture Thread", official(Journal(99, 5, &["Rodrigues, I."]), "P085"),
