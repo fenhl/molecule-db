@@ -38,6 +38,7 @@
                 version = manifest.version;
                 buildFeatures = [
                     "night"
+                    "nixos"
                 ];
                 cargoLock = {
                     allowBuiltinFetchGit = true; # allows omitting cargoLock.outputHashes

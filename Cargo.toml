@@ -29,14 +29,8 @@ warnings = "deny"
 [features]
 night = [
     "reqwest/blocking",
-    "reqwest/charset",
-    "reqwest/form",
-    "reqwest/gzip",
-    "reqwest/http2",
-    "reqwest/system-proxy",
-    "reqwest/zstd",
-    "wheel/reqwest",
 ]
+nixos = []
 
 [build-dependencies]
 gix = "0.83" # much slower than git2 but avoids a C dependency on openssl-sys
@@ -47,6 +41,7 @@ thiserror = "2"
 async-proto = "0.26"
 base64 = "0.22"
 bitvec = { version = "1", default-features = false, features = ["atomic"] }
+chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "4", features = ["derive"] }
 collect-mac = "0.1"
 enum-iterator = "2"
@@ -56,11 +51,12 @@ http = "1"
 itermore = { version = "0.8", features = ["array_combinations_with_reps", "array_windows"] }
 itertools = "0.14"
 lazy-regex = "3"
+log-lock = { git = "https://github.com/fenhl/log-lock" }
 mimalloc = "0.1"
 nonempty-collections = "1"
 omsim-rs = { git = "https://github.com/fenhl/omsim-rs" }
 rand = "0.10"
-reqwest = { version = "0.13", default-features = false, features = ["hickory-dns", "rustls-no-provider"] }
+reqwest = { version = "0.13", default-features = false, features = ["charset", "form", "gzip", "hickory-dns", "http2", "rustls-no-provider", "system-proxy", "zstd"] }
 rocket = { git = "https://github.com/fenhl/Rocket", branch = "forms", features = ["json"] }
 rocket-util = { git = "https://github.com/fenhl/rocket-util" }
 roman-numerals = "0.4"
@@ -68,9 +64,9 @@ rustls = { version = "0.23", default-features = false, features = ["ring"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
-tokio = { version = "1", features = ["io-util", "net", "process"] }
+tokio = { version = "1", features = ["io-util", "macros", "net", "process", "rt"] }
 url = { version = "2", features = ["serde"] }
-wheel = { git = "https://github.com/fenhl/wheel", features = ["rocket", "serde_json"] }
+wheel = { git = "https://github.com/fenhl/wheel", features = ["reqwest", "rocket", "serde_json"] }
 xdg = "3"
 
 [target.'cfg(any(target_os = "windows", target_os = "linux"))'.dependencies]

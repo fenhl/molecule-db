@@ -1,15 +1,22 @@
+#![allow(unused)] //TODO finish implementing Critelli metric parsing
+
 use {
     std::{
         borrow::Cow,
         collections::{
-            HashMap,
             HashSet,
+            hash_map::{
+                self,
+                HashMap,
+            },
         },
         fmt,
         iter,
         num::NonZero,
+        sync::LazyLock,
     },
     bitvec::prelude::*,
+    chrono::prelude::*,
     collect_mac::collect,
     enum_iterator::{
         Sequence,
@@ -20,6 +27,7 @@ use {
         IterArrayWindows as _,
     },
     itertools::Itertools as _,
+    log_lock::*,
     nonempty_collections::{
         IntoIteratorExt as _,
         IntoNonEmptyIterator as _,
@@ -46,7 +54,9 @@ use {
         html,
     },
     roman_numerals::ToRoman as _,
+    serde::Deserialize,
     url::Url,
+    wheel::traits::ReqwestResponseExt as _,
     crate::{
         Config,
         Error,
@@ -58,6 +68,7 @@ use {
         metric::{
             ComputationMetric,
             Metric,
+            Metrics,
             Restriction,
             tournament2019metrics,
         },
@@ -126,7 +137,6 @@ pub(crate) enum Source {
         num_permutations: u32,
         permutations: Box<dyn Iterator<Item = [Vec<Molecule>; 2]> + Send>,
         js_get_permutation: Cow<'static, str>,
-        #[allow(unused)] //TODO
         metrics: &'static [(Restriction, ComputationMetric)],
     },
     Critelli {
@@ -137,7 +147,6 @@ pub(crate) enum Source {
         num_permutations: u32,
         permutations: Box<dyn Iterator<Item = [Vec<Molecule>; 2]> + Send>,
         js_get_permutation: Cow<'static, str>,
-        #[allow(unused)] //TODO
         metrics: &'static [(Restriction, ComputationMetric)],
     },
     Official {
@@ -149,14 +158,12 @@ pub(crate) enum Source {
     },
     Other {
         url: &'static str,
-        #[allow(unused)] //TODO
         metrics: Cow<'static, [(Restriction, Metric)]>,
     },
     Tutorial,
     Zlbb {
         zlbb_id: &'static str,
         url: &'static str,
-        #[allow(unused)] //TODO
         metrics: Cow<'static, [(Restriction, Metric)]>,
     },
 }
@@ -231,7 +238,7 @@ fn zlbb(zlbb_id: &'static str, url: &'static str, metrics: impl Into<Cow<'static
 
 macro_rules! puzzles {
     ($($variant:ident => $name:literal, $source:expr,)*) => {
-        #[derive(Clone, Copy, PartialEq, Eq, Sequence)]
+        #[derive(Clone, Copy, PartialEq, Eq, Hash, Sequence)]
         pub(crate) enum Puzzle {
             $($variant,)*
         }
@@ -269,9 +276,75 @@ macro_rules! puzzles {
     };
 }
 
+static CACHED_METRICS: LazyLock<Mutex<HashMap<Puzzle, Metrics>>> = LazyLock::new(|| Mutex::default());
+
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum MetricsError {
+    #[error(transparent)] MetricParse(#[from] crate::metric::ParseError),
+    #[error(transparent)] Reqwest(#[from] reqwest::Error),
+    #[error(transparent)] Wheel(#[from] wheel::Error),
+}
+
 impl Puzzle {
     pub(crate) fn is_custom(&self) -> bool {
         self.source().url().is_some()
+    }
+
+    async fn metrics(&self, _ /*http_client*/: &reqwest::Client) -> Result<Metrics, MetricsError> {
+        Ok(match self.source() {
+            Source::Computation { metrics, .. } | Source::CritelliComputation { metrics, .. } => if metrics.is_empty() {
+                Metrics::None
+            } else {
+                Metrics::Computation(metrics)
+            },
+            /*
+            Source::Critelli { url_part } => lock!(cached_metrics = CACHED_METRICS; match cached_metrics.entry(*self) {
+                hash_map::Entry::Occupied(entry) => entry.get().clone(),
+                hash_map::Entry::Vacant(entry) => {
+                    #[derive(Debug, Deserialize)]
+                    #[serde(rename_all = "camelCase")]
+                    struct EventData {
+                        due_time: DateTime<Utc>,
+                        metrics: Vec<EventMetric>,
+                    }
+
+                    #[derive(Debug, Deserialize)]
+                    #[serde(rename_all = "PascalCase")]
+                    struct EventMetric {
+                        restrictions: String,
+                        submetrics: Vec<String>,
+                    }
+
+                    let event_data = http_client.get(format!("https://events.critelli.technology/{url_part}"))
+                        .header(reqwest::header::ACCEPT, "application/json")
+                        .send().await?
+                        .detailed_error_for_status().await?
+                        .json_with_text_in_error::<EventData>().await?;
+                    let metrics = Metrics::Normal(Cow::Owned(event_data.metrics.into_iter().map(|metric| Ok::<_, MetricsError>((
+                        if metric.restrictions == "default restrictions" {
+                            if event_data.due_time >= Utc.with_ymd_and_hms(2026, 3, 17, 15, 52, 59).unwrap() {
+                                Restriction::DefaultPostDrm
+                            } else {
+                                Restriction::DefaultPreDrm
+                            }
+                        } else {
+                            unimplemented!("parse restriction: {:?}", metric.restrictions) //TODO
+                        },
+                        Metric::Ties(Cow::Owned(metric.submetrics.into_iter().map(|submetric| submetric.parse::<Metric>()).collect::<Result<Vec<_>, _>>()?)),
+                    ))).collect::<Result<Vec<_>, _>>()?));
+                    entry.insert(metrics.clone());
+                    metrics
+                }
+            }),
+            */ //TODO
+            Source::Critelli { .. } => Metrics::Unknown, //TODO
+            Source::Official { .. } | Source::OfficialNonLb { .. } | Source::Tutorial => Metrics::None,
+            Source::Other { metrics, .. } | Source::Zlbb { metrics, .. } => if metrics.is_empty() {
+                Metrics::None
+            } else {
+                Metrics::Normal(metrics)
+            },
+        })
     }
 }
 
@@ -312,15 +385,22 @@ pub(crate) async fn index(config: &State<Config>, http_client: &State<reqwest::C
     }, html! {}).await
 }
 
+#[derive(Debug, thiserror::Error, rocket_util::Error)]
+pub(crate) enum GetError {
+    #[error(transparent)] Metrics(#[from] MetricsError),
+    #[error(transparent)] Other(#[from] Error),
+}
+
 #[rocket::get("/puzzle/<puzzle>")]
-pub(crate) async fn get(config: &State<Config>, http_client: &State<reqwest::Client>, if_none_match: IfNoneMatch<'_>, puzzle: Puzzle) -> Result<StaticPageResponse, Error> {
+pub(crate) async fn get(config: &State<Config>, http_client: &State<reqwest::Client>, if_none_match: IfNoneMatch<'_>, puzzle: Puzzle) -> Result<StaticPageResponse, GetError> {
     Ok(static_page(config, http_client, if_none_match, Tab::Puzzles, true, html! {
         : puzzle;
         : " — Opus Magnum Molecule Database";
     }, html! {
         h1 : puzzle;
+        @let source = puzzle.source();
         p {
-            @match puzzle.source() {
+            @match &source {
                 source @ (Source::Critelli { .. } | Source::CritelliComputation { .. }) => : external_link(config, http_client, source.url().unwrap().as_str(), "Event page").await?;
                 source @ (Source::Computation { .. } | Source::Other { .. } | Source::Zlbb { .. }) => : external_link(config, http_client, source.url().unwrap().as_str(), "Source").await?;
                 Source::Official { collection, .. } | Source::OfficialNonLb { collection } => : collection;
@@ -372,7 +452,6 @@ pub(crate) async fn get(config: &State<Config>, http_client: &State<reqwest::Cli
                 }
             }
         }
-        @let source = puzzle.source();
         @if let Some((num_permutations, js_get_permutation)) = source.computation_data() {
             script {
                 : RawHtml(format!("
@@ -432,6 +511,40 @@ pub(crate) async fn get(config: &State<Config>, http_client: &State<reqwest::Cli
                     nextPermutation();
                     setInterval(nextPermutation, 2000);
                 ");
+            }
+        }
+        @match puzzle.metrics(http_client).await? {
+            Metrics::None => {}
+            Metrics::Unknown => {
+                h2 : "Metrics";
+                p : "unknown";
+            }
+            Metrics::Normal(metrics) => {
+                h2 : "Metrics";
+                //TODO spoiler warning for Glorp's Construct
+                ul {
+                    @for (restriction, metric) in &*metrics {
+                        li {
+                            : "[";
+                            : restriction;
+                            : "] ";
+                            : metric;
+                        }
+                    }
+                }
+            }
+            Metrics::Computation(metrics) => {
+                h2 : "Metrics";
+                ul {
+                    @for (restriction, metric) in metrics {
+                        li {
+                            : "[";
+                            : restriction;
+                            : "] ";
+                            : metric;
+                        }
+                    }
+                }
             }
         }
     }, html! {}).await)
@@ -774,8 +887,8 @@ puzzles! {
     AblativeCrystal => "Ablative Crystal", official(Journal(99, 3, &["Sheu, C."]), "P068"),
     AbrasiveParticles => "Abrasive Particles", official(Appendix, "P079"),
     ActivePolymerase => "Active Polymerase", zlbb("w2501728219", "https://reddit.com/r/opus_magnum/comments/fe8l4r/week_6_active_polymerase/", &[
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Cost, Metric::AreaV, Metric::Cycles])),
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Product(&Metric::Cycles, &Metric::Parts(PartType::Bonding)), Metric::Cost])),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cost, Metric::AreaV, Metric::Cycles]))),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Product(&Metric::Cycles, &Metric::Parts(PartType::Bonding)), Metric::Cost]))),
     ]),
     AetherDetector => "Aether Detector", official(Appendix, "P077"),
     AetherReactor => "Aether Reactor", critelli("Week_5_AetherReactor"),
@@ -784,20 +897,20 @@ puzzles! {
     AlchemicalSlag => "Alchemical Slag", official(Journal(99, 7, &["Price, A."]), "P099"),
     AlcoholSeparation => "Alcohol Separation", official(Campaign(3), "P024"),
     AmalgamatedGoldRing => "Amalgamated Gold Ring", zlbb("w2501727808", "https://reddit.com/r/opus_magnum/comments/ewj8ml/tournament_week_2_amalgamated_gold_ring/", &[
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::AreaV, Metric::Cycles])),
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Rate, Metric::Cost])),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::AreaV, Metric::Cycles]))),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Rate, Metric::Cost]))),
     ]),
     AmeliasCatalyst => "Amelia's Catalyst", critelli("e9d7e303b465bbcba16fc72b0db96bc1"),
     AnimismusBuffer => "Animismus Buffer", official(Journal(99, 8, &["Price, A."]), "P104"),
     ArmorFilament => "Armor Filament", official(Campaign(2), "P020"),
     ArmorPolish => "Armor Polish", official(Drm(2), "P213"),
     ArqueritePromotion => "Arquerite Promotion", other("https://discord.com/channels/278707932089155584/296373951800541186/857072161097515049", &[
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Rate, Metric::Cost, Metric::AreaV])), // https://discord.com/channels/278707932089155584/296373951800541186/858143895824629792
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Cost, Metric::Cycles, Metric::AreaV])),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Rate, Metric::Cost, Metric::AreaV]))), // https://discord.com/channels/278707932089155584/296373951800541186/858143895824629792
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cost, Metric::Cycles, Metric::AreaV]))),
     ]),
     ArtificialOre => "Artificial Ore", zlbb("w2591419339", "https://discord.com/channels/278707932089155584/296373951800541186/879900850661769278", &[
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Cost, Metric::Instructions, Metric::Cycles])),
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::VintageInstructions, Metric::Cycles, Metric::Cost])),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cost, Metric::Instructions, Metric::Cycles]))),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::VintageInstructions, Metric::Cycles, Metric::Cost]))),
     ]),
     Asbestos => "Asbestos", critelli("OM2025Weeklies6_Asbestos"),
     AssassinsFilament => "Assassin's Filament", official(Journal(99, 7, &["Adam, V."]), "P097"),
@@ -859,8 +972,8 @@ puzzles! {
     BurningSpiritOfSaturn => "Burning Spirit of Saturn", critelli("d3f9ca519aacb2d782a5388098299acd"),
     CalligraphersInk => "Calligrapher's Ink", official(Journal(108, 5, &["Tracy, E."]), "P277"),
     CalmBeforeTheStorm => "Calm Before the Storm", zlbb("w2450512434", "https://drive.google.com/drive/folders/1JVbrvF7dcTKmYN68eGlWhTryXy1TEnc8", &[
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Product(&Metric::Cycles, &Metric::Parts(PartType::Unbonding)), Metric::AreaV, Metric::Cost])),
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::AreaV, Metric::Cost, Metric::Cycles])),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Product(&Metric::Cycles, &Metric::Parts(PartType::Unbonding)), Metric::AreaV, Metric::Cost]))),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::AreaV, Metric::Cost, Metric::Cycles]))),
     ]),
     CancerMedicine => "Cancer Medicine", critelli("d40f1593c0731c9325dd5c5b9ed3db4b"),
     CanisterShot => "Canister Shot", official(Journal(108, 4, &["Fauss, A."]), "P270"),
@@ -870,8 +983,8 @@ puzzles! {
     ClimbingRopeFiber => "Climbing Rope Fiber", official(Campaign(3), "P027"),
     Clusterfgold => "Clusterfgold", critelli("7ce689ab3de9678bfb297994d79f17e1"),
     ColvanBlue => "Colvan Blue", other("https://discord.com/channels/278707932089155584/296373951800541186/851990719530532864", &[
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Cycles, Metric::AreaV, Metric::Cost])),
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::AreaV, Metric::Cycles, Metric::Cost])),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cycles, Metric::AreaV, Metric::Cost]))),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::AreaV, Metric::Cycles, Metric::Cost]))),
     ]),
     CompoundAnaesthetic => "Compound Anaesthetic", official(Journal(99, 11, &["Azur, I."]), "P244"),
     ConductiveEnamel => "Conductive Enamel", official(Journal(99, 6, &["Henderson, I."]), "P093"),
@@ -881,17 +994,17 @@ puzzles! {
     CouragePotion => "Courage Potion", official(Campaign(2), "P021"),
     CranberryGlass => "Cranberry Glass", other("https://discord.com/channels/278707932089155584/296373951800541186/864679286073720832", &[
         (Restriction::DefaultPreDrm, Metric::Sum(&[Metric::Cost, Metric::Cycles, Metric::AreaV, Metric::Instructions])),
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Cycles, Metric::Instructions, Metric::Cost])),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cycles, Metric::Instructions, Metric::Cost]))),
     ]),
     CreativeAccounting => "Creative Accounting", zlbb("w1698785633", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/", tournament2019metrics(&[Metric::Cost, Metric::Cycles, Metric::AreaV])),
     CrimsonCrystalBisection => "Crimson Crystal Bisection", other("https://discord.com/channels/278707932089155584/296373951800541186/867218205080158208", vec![
-        (Restriction::WithConduits(&Restriction::DefaultPreDrm, vec![Conduit { pos_a: HexIndex { q: -1, r: 0 }, pos_b: HexIndex { q: 1, r: 0 }, hexes: vec![HexIndex { q: 0, r: 0 }] }]), Metric::Ties(&[Metric::HeightV, Metric::Cycles, Metric::Cost])),
-        (Restriction::WithConduits(&Restriction::All(&[Restriction::DefaultPreDrm, Restriction::Trackless]), vec![Conduit { pos_a: HexIndex { q: -1, r: 0 }, pos_b: HexIndex { q: 1, r: 0 }, hexes: vec![HexIndex { q: 0, r: 0 }] }]), Metric::Ties(&[Metric::Instructions, Metric::AreaV, Metric::Cycles])),
+        (Restriction::WithConduits(&Restriction::DefaultPreDrm, vec![Conduit { pos_a: HexIndex { q: -1, r: 0 }, pos_b: HexIndex { q: 1, r: 0 }, hexes: vec![HexIndex { q: 0, r: 0 }] }]), Metric::Ties(Cow::Borrowed(&[Metric::HeightV, Metric::Cycles, Metric::Cost]))),
+        (Restriction::WithConduits(&Restriction::All(&[Restriction::DefaultPreDrm, Restriction::Trackless]), vec![Conduit { pos_a: HexIndex { q: -1, r: 0 }, pos_b: HexIndex { q: 1, r: 0 }, hexes: vec![HexIndex { q: 0, r: 0 }] }]), Metric::Ties(Cow::Borrowed(&[Metric::Instructions, Metric::AreaV, Metric::Cycles]))),
     ]),
     Critellium => "Critellium", critelli("e8f14a0982aaacbb3254457e77c23a0b"),
     CrystalCompression => "Crystal Compression", other("https://discord.com/channels/278707932089155584/296373951800541186/862141779825655818", &[
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Latency, Metric::Cost, Metric::AreaV])),
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::AreaV, Metric::Cycles, Metric::Cost])),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Latency, Metric::Cost, Metric::AreaV]))),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::AreaV, Metric::Cycles, Metric::Cost]))),
     ]),
     CrystallizedAir => "Crystallized Air", critelli("OM2025week5_Crystallized_Air"),
     CultivationTonic => "Cultivation Tonic", official(Journal(99, 10, &["Nick, P. A."]), "P249"),
@@ -909,9 +1022,9 @@ puzzles! {
     DoYouRemember => "Do You Remember", zlbb("w1698787731", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/", tournament2019metrics(&[Metric::Div(&Metric::Cost, &Metric::Const(2)), Metric::Cycles, Metric::AreaV])),
     DurableStitching => "Durable Stitching", official(Journal(108, 9, &["Apia, B."]), "P296"),
     DwarvenFireWine => "Dwarven Fire Wine", zlbb("w1698786588", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/", &[
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Cycles, Metric::Cost])),
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Instructions, Metric::Cycles])),
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Cost, Metric::Instructions])),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cycles, Metric::Cost]))),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Instructions, Metric::Cycles]))),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cost, Metric::Instructions]))),
         (Restriction::DefaultPreDrm, Metric::Sum(&[Metric::Cost, Metric::Div(&Metric::Cycles, &Metric::Const(2)), Metric::Instructions])),
     ]),
     DyeHard => "Dye Hard", critelli("OM2023Weeklies_DyeHard"),
@@ -937,13 +1050,13 @@ puzzles! {
     ),
     ElementalCopper => "Elemental Copper", official(Drm(1), "P202"),
     ElementalJewelSetting => "Elemental Jewel Setting", zlbb("w2450512809", "https://drive.google.com/drive/folders/1P7fsijiuJTI-1LKrpT7IMn7nj2V5PAvC", &[
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::AreaV, Metric::Cycles, Metric::Cost])),
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Sum(&[Metric::Cost, Metric::Cycles, Metric::AreaV]), Metric::Cost, Metric::Cycles])),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::AreaV, Metric::Cycles, Metric::Cost]))),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Sum(&[Metric::Cost, Metric::Cycles, Metric::AreaV]), Metric::Cost, Metric::Cycles]))),
     ]),
     EmbalmingFluid => "Embalming Fluid", official(Journal(99, 9, &["Day, A."]), "P108"),
     EmergencyAntidote => "Emergency Antidote", zlbb("w2450512232", "https://drive.google.com/drive/folders/1SL0WExUVLu6_xsvZCA9z29PH6RuFBrBd", &[
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Cycles, Metric::Cost])),
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Instructions, Metric::Cycles, Metric::Cost])),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cycles, Metric::Cost]))),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Instructions, Metric::Cycles, Metric::Cost]))),
     ]),
     EndGame => "End Game", critelli("OM2023_W0_EndGame"),
     EndurancePotion => "Endurance Potion", official(Journal(108, 8, &["Wellman, G."]), "P293"),
@@ -955,8 +1068,8 @@ puzzles! {
     ExplorersSalve => "Explorer's Salve", official(Journal(99, 2, &["Laj, T."]), "P059"),
     ExplosiveAlloy => "Explosive Alloy", official(Journal(99, 12, &["Via Lactea, V."]), "P251"),
     ExplosiveFingerTrap => "Explosive Finger Trap", other("https://discord.com/channels/278707932089155584/296373951800541186/874833948570689577", &[
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::AreaV, Metric::Cycles, Metric::Cost])),
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Rate, Metric::Cost])),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::AreaV, Metric::Cycles, Metric::Cost]))),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Rate, Metric::Cost]))),
     ]),
     ExplosiveLogicUnit => "Explosive Logic Unit", computation(
         "https://drive.google.com/drive/folders/1A_GkcZV1fxMt3vII6qGsD_wX2ULzG8Ca",
@@ -984,7 +1097,7 @@ puzzles! {
             };
         ",
         &[
-            (Restriction::All(&[Restriction::DefaultPreDrm, Restriction::NoOutputConditionals]), ComputationMetric::Max(Metric::Ties(&[Metric::Sum(&[Metric::Div(&Metric::Cost, &Metric::Const(5)), Metric::Cycles, Metric::AreaV]), Metric::Cycles, Metric::AreaV]))),
+            (Restriction::All(&[Restriction::DefaultPreDrm, Restriction::NoOutputConditionals]), ComputationMetric::Max(Metric::Ties(Cow::Borrowed(&[Metric::Sum(&[Metric::Div(&Metric::Cost, &Metric::Const(5)), Metric::Cycles, Metric::AreaV]), Metric::Cycles, Metric::AreaV])))),
         ],
     ),
     ExplosivePhial => "Explosive Phial", official(Campaign(2), "P017"),
@@ -995,8 +1108,8 @@ puzzles! {
     FacePowder => "Face Powder", official(Campaign(1), "P009"),
     FaeroFilament => "Faero Filament", critelli("OM2024Weeklies_FaeroFilament"),
     FerrousWheel => "Ferrous Wheel", zlbb("w2565611826", "https://discord.com/channels/278707932089155584/296373951800541186/869756148788625459", &[
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Cycles, Metric::Cost, Metric::AreaV])),
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Cost, Metric::AreaV, Metric::Cycles])),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cycles, Metric::Cost, Metric::AreaV]))),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cost, Metric::AreaV, Metric::Cycles]))),
     ]),
     FilmCrystal => "Film Crystal", critelli("Week_4_FilmCrystal"),
     FireworksPowder => "Fireworks Powder", official(Drm(2), "P211"),
@@ -1012,8 +1125,8 @@ puzzles! {
     GlorpsConstruct => "Glorp's Construct", critelli("b721b7ba8e14db667d5ea374eaca9a9e"),
     GoldenThread => "Golden Thread", official(Campaign(4), "P037"),
     GreenVitriol => "Green Vitriol (2021 weeklies)", zlbb("w2539581468", "https://discord.com/channels/278707932089155584/296373951800541186/859612178902286376", &[
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Cycles, Metric::Cost, Metric::AreaV])),
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Sum(&[Metric::Cost, Metric::Cycles, Metric::AreaV]), Metric::Instructions])),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cycles, Metric::Cost, Metric::AreaV]))),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Sum(&[Metric::Cost, Metric::Cycles, Metric::AreaV]), Metric::Instructions]))),
     ]),
     GreenVitriolJournal => "Green Vitriol (journal)", official(Journal(99, 11, &["Critelli, Z."]), "P240"),
     GrenadePellet => "Grenade Pellet", official(Journal(108, 1, &["Daas, S."]), "P259"),
@@ -1060,12 +1173,12 @@ puzzles! {
     HexstabilizedTeulingsMors => "Hexstabilized Teuling's Mors", critelli("OM2023Weeklies_HexstabilizedTeulingsMors"),
     HighExplosive => "High Explosive", official(Journal(108, 4, &["Nick, P. A."]), "P271"),
     HighGlossFinish => "High Gloss Finish", zlbb("w2501728349", "https://reddit.com/r/opus_magnum/comments/fhui7x/week_7_high_gloss_finish/", &[
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Cycles, Metric::Cost, Metric::AreaV])),
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::If(&Restriction::Eq(Metric::MechCost, Metric::Const(50)), &Metric::Const(300), &Metric::Sum(&[Metric::Cost, Metric::Cycles, Metric::AreaV])), Metric::Cycles])),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cycles, Metric::Cost, Metric::AreaV]))),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::If(&Restriction::Eq(Metric::MechCost, Metric::Const(50)), &Metric::Const(300), &Metric::Sum(&[Metric::Cost, Metric::Cycles, Metric::AreaV])), Metric::Cycles]))),
     ]),
     HornSilver => "Horn Silver", zlbb("w2513871683", "https://discord.com/channels/278707932089155584/296373951800541186/849437821918904350", &[
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Sum(&[Metric::Cost, Metric::Cycles, Metric::AreaV]), Metric::Cycles, Metric::AreaV])),
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Sum(&[Metric::Tracks, Metric::Instructions]), Metric::Cycles, Metric::Cost, Metric::AreaV])),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Sum(&[Metric::Cost, Metric::Cycles, Metric::AreaV]), Metric::Cycles, Metric::AreaV]))),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Sum(&[Metric::Tracks, Metric::Instructions]), Metric::Cycles, Metric::Cost, Metric::AreaV]))),
     ]),
     HotIce => "Hot Ice", critelli("OM2022Weeklies_HotIce"),
     HydrophobicWater => "Hydrophobic Water", critelli("om2025week1_Hydrophobic_Water"),
@@ -1075,8 +1188,8 @@ puzzles! {
     IgnitionCord => "Ignition Cord", critelli("OM2022Weeklies_IgnitionCord"),
     ImmortalFilament => "Immortal Filament", critelli("483f5c168a293fbed5aaf12990be50cf"),
     ImprovedExplosivePhial => "Improved Explosive Phial", zlbb("w2450508212", "https://drive.google.com/drive/folders/1aRi8dJIu7YPhikm-QXRboJybAr9ZlW0j", &[
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::AreaV, Metric::Cost, Metric::Cycles])),
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Cost, Metric::Cycles, Metric::AreaV])),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::AreaV, Metric::Cost, Metric::Cycles]))),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cost, Metric::Cycles, Metric::AreaV]))),
     ]),
     InBerlosBasement => "In Berlo's Basement", critelli("66f74ef1aae21439a688b1cc54ca894c"),
     InLocoDispono => "In Loco Dispono", critelli("5b464528478f002ba6866f690bd01f40"),
@@ -1123,8 +1236,8 @@ puzzles! {
             };
         ",
         &[
-            (Restriction::All(&[Restriction::DefaultPreDrm, Restriction::NoTriplexUnbonding]), ComputationMetric::Min(Metric::Ties(&[Metric::Cycles, Metric::Cost, Metric::AreaV]))),
-            (Restriction::All(&[Restriction::DefaultPreDrm, Restriction::NoTriplexUnbonding]), ComputationMetric::Min(Metric::Ties(&[Metric::AreaV, Metric::Cycles, Metric::Cost]))),
+            (Restriction::All(&[Restriction::DefaultPreDrm, Restriction::NoTriplexUnbonding]), ComputationMetric::Min(Metric::Ties(Cow::Borrowed(&[Metric::Cycles, Metric::Cost, Metric::AreaV])))),
+            (Restriction::All(&[Restriction::DefaultPreDrm, Restriction::NoTriplexUnbonding]), ComputationMetric::Min(Metric::Ties(Cow::Borrowed(&[Metric::AreaV, Metric::Cycles, Metric::Cost])))),
         ],
     ),
     LamplightGas => "Lamplight Gas", official(Journal(99, 6, &["Klusseter, S."]), "P092"),
@@ -1205,7 +1318,7 @@ puzzles! {
             };
         ",
         &[
-            (Restriction::All(&[Restriction::DefaultPreDrm, Restriction::NoOutputConditionals]), ComputationMetric::Max(Metric::Ties(&[Metric::Sum(&[Metric::Cost, Metric::Div(&Metric::Cycles, &Metric::Const(6)), Metric::AreaV]), Metric::Cost]))),
+            (Restriction::All(&[Restriction::DefaultPreDrm, Restriction::NoOutputConditionals]), ComputationMetric::Max(Metric::Ties(Cow::Borrowed(&[Metric::Sum(&[Metric::Cost, Metric::Div(&Metric::Cycles, &Metric::Const(6)), Metric::AreaV]), Metric::Cost])))),
         ],
     ),
     LubricatingFilament => "Lubricating Filament", official(Journal(99, 3, &["Klusseter, S."]), "P065"),
@@ -1312,7 +1425,7 @@ puzzles! {
             };
         ",
         &[
-            (Restriction::All(&[Restriction::DefaultPreDrm, Restriction::AllReagentsPlaced, Restriction::NoOutputConditionals]), ComputationMetric::Max(Metric::Ties(&[Metric::AreaV, Metric::Cost]))),
+            (Restriction::All(&[Restriction::DefaultPreDrm, Restriction::AllReagentsPlaced, Restriction::NoOutputConditionals]), ComputationMetric::Max(Metric::Ties(Cow::Borrowed(&[Metric::AreaV, Metric::Cost])))),
         ],
     ),
     MetalDivision => "Metal Division", official(Drm(2), "P208"),
@@ -1320,9 +1433,9 @@ puzzles! {
     MildSteel => "Mild Steel", official(Journal(108, 11, &["Kagami, T."]), "P308"),
     MineralOil => "Mineral Oil", official(Journal(108, 11, &["Kia, J."]), "P307"),
     MiraculousAutosalt => "Miraculous Autosalt", zlbb("w1698787102", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/", &[
-        (Restriction::WithMiraculousAutosalt(&Restriction::DefaultPreDrm), Metric::Ties(&[Metric::Cycles, Metric::Cost])),
-        (Restriction::WithMiraculousAutosalt(&Restriction::DefaultPreDrm), Metric::Ties(&[Metric::AreaV, Metric::Cycles])),
-        (Restriction::WithMiraculousAutosalt(&Restriction::DefaultPreDrm), Metric::Ties(&[Metric::Cost, Metric::AreaV])),
+        (Restriction::WithMiraculousAutosalt(&Restriction::DefaultPreDrm), Metric::Ties(Cow::Borrowed(&[Metric::Cycles, Metric::Cost]))),
+        (Restriction::WithMiraculousAutosalt(&Restriction::DefaultPreDrm), Metric::Ties(Cow::Borrowed(&[Metric::AreaV, Metric::Cycles]))),
+        (Restriction::WithMiraculousAutosalt(&Restriction::DefaultPreDrm), Metric::Ties(Cow::Borrowed(&[Metric::Cost, Metric::AreaV]))),
         (Restriction::WithMiraculousAutosalt(&Restriction::DefaultPreDrm), Metric::Sum(&[Metric::Cost, Metric::Cycles, Metric::AreaV])),
     ]),
     MiraculousDentifrice => "Miraculous Dentifrice", official(Journal(108, 3, &["Objectus, R."]), "P266"),
@@ -1330,8 +1443,8 @@ puzzles! {
     MirroringAmalgam => "Mirroring Amalgam", official(Journal(108, 9, &["Il Sichay, V."]), "P298"),
     MistOfClarification => "Mist of Clarification", official(Journal(108, 10, &["Wallace, A."]), "P300"),
     MistOfDousing => "Mist of Dousing", zlbb("w2450512021", "https://drive.google.com/drive/folders/1JX9JEdzXfFgn1-z4Yno_oMjSHHg8eGxE", &[
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Cycles, Metric::Cost, Metric::AreaV])),
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Cost, Metric::Cycles, Metric::AreaV])),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cycles, Metric::Cost, Metric::AreaV]))),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cost, Metric::Cycles, Metric::AreaV]))),
     ]),
     MistOfGlaciation => "Mist of Glaciation", official(Journal(108, 6, &["Mann, M."]), "P283"),
     MistOfHallucination => "Mist of Hallucination", official(Campaign(5), "P038"),
@@ -1347,14 +1460,14 @@ puzzles! {
     OrangeVitriol => "Orange Vitriol", critelli("547de89828787801144566f080b0b213"),
     OrnamentalPlating => "Ornamental Plating", critelli("OM2024Weeklies_OrnamentalPlating"),
     Overloaded => "Overloaded", zlbb("w2501728107", "https://reddit.com/r/opus_magnum/comments/f7674d/week_5_overloaded/", &[
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Cycles, Metric::Cost, Metric::Instructions])),
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Instructions, Metric::Cost, Metric::Cycles])),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cycles, Metric::Cost, Metric::Instructions]))),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Instructions, Metric::Cost, Metric::Cycles]))),
     ]),
     PalatableTissue => "Palatable Tissue", critelli("OM2024Weeklies_PalatableTissue"),
     Panacea => "Panacea", zlbb("w1698789743", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/", tournament2019metrics(&[Metric::Cost, Metric::Cycles, Metric::AreaV])),
     PanaceaToPoison => "Panacea to Poison", zlbb("w2450511665", "https://drive.google.com/drive/folders/1-Ky7fk653U6Zr9bPgEzGDtI3QX7vVJlE", &[
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Div(&Metric::Product(&Metric::HeightV, &Metric::Cycles), &Metric::Const(3)), Metric::AreaV, Metric::Cost])),
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Sum(&[Metric::Cost, Metric::Cycles, Metric::AreaV]), Metric::AreaV, Metric::Cycles])),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Div(&Metric::Product(&Metric::HeightV, &Metric::Cycles), &Metric::Const(3)), Metric::AreaV, Metric::Cost]))),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Sum(&[Metric::Cost, Metric::Cycles, Metric::AreaV]), Metric::AreaV, Metric::Cycles]))),
     ]),
     ParadeRocketFuel => "Parade-Rocket Fuel", official(Appendix, "P082"),
     ParetoPoppers => "Pareto Poppers", critelli("OM2025Weeklies4_ParetoPoppers"),
@@ -1373,7 +1486,7 @@ puzzles! {
             permutations.clone(),
             js_get_permutation_serverside(permutations),
             &[
-                (Restriction::All(&[Restriction::DefaultPreDrm, Restriction::NoOutputBondConditionals]), ComputationMetric::Max(Metric::Ties(&[Metric::Instructions, Metric::Cost]))),
+                (Restriction::All(&[Restriction::DefaultPreDrm, Restriction::NoOutputBondConditionals]), ComputationMetric::Max(Metric::Ties(Cow::Borrowed(&[Metric::Instructions, Metric::Cost])))),
             ],
         )
     },
@@ -1385,8 +1498,8 @@ puzzles! {
     Plastic => "Plastic", critelli("ac6ab9dc43b0ac7ad9277c25ed5375e1"),
     PotentPainkillers => "Potent Painkillers", critelli("Week_7_PotentPainkillers"),
     PotentPotables => "Potent Potables", zlbb("w2501727721", "https://reddit.com/r/opus_magnum/comments/et5lyo/tournament_week_1_potent_potables/", &[
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Cost, Metric::AreaV, Metric::Cycles])),
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Sum(&[Metric::Cost, Metric::AreaV, Metric::Cycles]), Metric::Cost, Metric::AreaV])),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cost, Metric::AreaV, Metric::Cycles]))),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Sum(&[Metric::Cost, Metric::AreaV, Metric::Cycles]), Metric::Cost, Metric::AreaV]))),
     ]),
     PousseCafe => "Pousse-Café", critelli("f883eb7701f420e1b1960eabe37b7fc1"),
     PrecisionMachineOil => "Precision Machine Oil", official(Campaign(1), "P012"),
@@ -1400,20 +1513,20 @@ puzzles! {
     QuietHours => "Quiet Hours", critelli("ff6feb9ee69a0450a117eb2a7c7de784"),
     QuintessentialAerogel => "Quintessential Aerogel", critelli("OM2022Weeklies_QuintAerogel"),
     QuintessentialCatalyst => "Quintessential Catalyst", other("https://discord.com/channels/278707932089155584/296373951800541186/877363315687436349", &[
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Product(&Metric::Cycles, &Metric::Arms), Metric::Cost, Metric::AreaV])),
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::AreaV, Metric::Instructions, Metric::Cost])),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Product(&Metric::Cycles, &Metric::Arms), Metric::Cost, Metric::AreaV]))),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::AreaV, Metric::Instructions, Metric::Cost]))),
     ]),
     QuintessentialExplosive => "Quintessential Explosive", critelli("OM2023Weeklies_QuintExplosive"),
     QuintessentialMedium => "Quintessential Medium", official(Journal(99, 9, &["Price, A."]), "P107"),
     QuintessentialStabilizer => "Quintessential Stabilizer", zlbb("w2450512626", "https://drive.google.com/drive/folders/1sommL5qdrN8fa0-D_dnwEJxVlwu34QgT", &[
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Cycles, Metric::Cost, Metric::AreaV])),
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Cost, Metric::AreaV, Metric::Cycles])),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cycles, Metric::Cost, Metric::AreaV]))),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cost, Metric::AreaV, Metric::Cycles]))),
     ]),
     RadioReceivers => "Radio Receivers", critelli("Week_8_RadioReceivers"),
     RatPoison => "Rat Poison", official(Appendix, "P074"),
     RavarisRage => "Ravari's Rage", other("https://drive.google.com/drive/folders/1iy7KDmdkO4HGbjD1_jX_qb8mQ2IeSmS1", &[
-        (Restriction::WithRavarisRage(&Restriction::All(&[Restriction::DefaultPreDrm, Restriction::Looping])), Metric::Ties(&[Metric::Rate, Metric::Cost, Metric::AreaV])),
-        (Restriction::WithRavarisRage(&Restriction::All(&[Restriction::DefaultPreDrm, Restriction::Looping])), Metric::Ties(&[Metric::AreaV, Metric::Cycles, Metric::Cost])),
+        (Restriction::WithRavarisRage(&Restriction::All(&[Restriction::DefaultPreDrm, Restriction::Looping])), Metric::Ties(Cow::Borrowed(&[Metric::Rate, Metric::Cost, Metric::AreaV]))),
+        (Restriction::WithRavarisRage(&Restriction::All(&[Restriction::DefaultPreDrm, Restriction::Looping])), Metric::Ties(Cow::Borrowed(&[Metric::AreaV, Metric::Cycles, Metric::Cost]))),
     ]),
     RavarisRoad => "Ravari's Road", critelli("OM2025Weeklies7_RavarisRoad"),
     RavarisWheel => "Ravari's Wheel", official(Journal(99, 3, &["Ravari, V."]), "P064"),
@@ -1480,8 +1593,8 @@ puzzles! {
     SteelWool => "Steel Wool", official(Journal(108, 3, &["Joshua, Y."]), "P268"),
     StormSensingPotion => "Storm-Sensing Potion", official(Journal(108, 8, &["Ames, F. L."]), "P294"),
     SuperconductiveCopper => "Superconductive Copper", other("https://discord.com/channels/278707932089155584/296373951800541186/854533289816358922", &[
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Product(&Metric::Sum(&[Metric::Arms, Metric::Const(2)]), &Metric::Cycles), Metric::AreaV, Metric::Cost])),
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::AreaV, Metric::Instructions, Metric::Cost])),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Product(&Metric::Sum(&[Metric::Arms, Metric::Const(2)]), &Metric::Cycles), Metric::AreaV, Metric::Cost]))),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::AreaV, Metric::Instructions, Metric::Cost]))),
     ]),
     SurrenderFlare => "Surrender Flare", official(Campaign(2), "P022"),
     SurrendierFlareSalt => "Surrendier Flare Salt", critelli("a77d68acaa9f0bb53a022686d5638983"),
@@ -1489,8 +1602,8 @@ puzzles! {
     SuspiciouslyStableSubstance => "Suspiciously Stable Substance", critelli("OM2022Weeklies_SSS"),
     SutureThread => "Suture Thread", official(Journal(99, 5, &["Rodrigues, I."]), "P085"),
     SwampFiber => "Swamp Fiber", zlbb("w2501727889", "https://reddit.com/r/opus_magnum/comments/f05mp5/week_3_swamp_fiber/", &[
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Cycles, Metric::AreaV])),
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Sum(&[Metric::Instructions, Metric::Div(&Metric::Cost, &Metric::Const(5))]), Metric::Instructions])),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cycles, Metric::AreaV]))),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Sum(&[Metric::Instructions, Metric::Div(&Metric::Cost, &Metric::Const(5))]), Metric::Instructions]))),
     ]),
     SweeperRod => "Sweeper Rod", critelli("OM2022Weeklies_SweeperRod"),
     SwordAlloy => "Sword Alloy", official(Campaign(4), "P033"),
@@ -1538,7 +1651,7 @@ puzzles! {
             };
         ",
         &[
-            (Restriction::DefaultPreDrm, ComputationMetric::RestrictedMax(Metric::Ties(&[Metric::Cycles, Metric::Cost, Metric::AreaV]))),
+            (Restriction::DefaultPreDrm, ComputationMetric::RestrictedMax(Metric::Ties(Cow::Borrowed(&[Metric::Cycles, Metric::Cost, Metric::AreaV])))),
             (Restriction::DefaultPreDrm, ComputationMetric::RestrictedMax(Metric::Sum(&[Metric::Cost, Metric::Cycles, Metric::AreaV]))),
         ],
     ),
@@ -1604,10 +1717,10 @@ puzzles! {
     UnstableCompound => "Unstable Compound", official(Campaign(5), "P040"),
     UnstableSovrium => "Unstable Sovrium", critelli("OM2024Weeklies_UnstableSovrium"),
     Unwinding => "Unwinding", zlbb("w1611998067", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/", &[
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::AreaV, Metric::Cycles])),
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Cost, Metric::AreaV])),
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Cycles, Metric::AreaV])),
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Cycles, Metric::Cost])),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::AreaV, Metric::Cycles]))),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cost, Metric::AreaV]))),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cycles, Metric::AreaV]))),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cycles, Metric::Cost]))),
     ]),
     VaccineTemplate => "Vaccine Template", critelli("5d936a1ca336f6658f097260eda56a8f"),
     VanBerlosChain => "Van Berlo's Chain", official(Journal(99, 1, &["Van Berlo, C."]), "P055"),
@@ -1616,8 +1729,8 @@ puzzles! {
     VanishingMaterial => "Vanishing Material", official(Journal(99, 9, &["Price, A."]), "P105"),
     VaporOfLevity => "Vapor of Levity", official(Appendix, "P078"),
     VaporizedPropellant => "Vaporized Propellant", other("https://discord.com/channels/278707932089155584/296373951800541186/872298625798119455", &[
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Cycles, Metric::Cost, Metric::AreaV])),
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Sum(&[Metric::Cost, Metric::Cycles, Metric::AreaV]), Metric::Instructions])),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cycles, Metric::Cost, Metric::AreaV]))),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Sum(&[Metric::Cost, Metric::Cycles, Metric::AreaV]), Metric::Instructions]))),
     ]),
     VaporousSolvent => "Vaporous Solvent", official(Journal(99, 7, &["Klusseter, S."]), "P098"),
     VerdigrisGlaze => "Verdigris Glaze", official(Journal(108, 10, &["Ironside, F."]), "P302"),
@@ -1630,8 +1743,8 @@ puzzles! {
     ViscousSludge => "Viscous Sludge", official(Appendix, "P080"),
     VisillaryAnaesthetic => "Visillary Anaesthetic", official(Journal(99, 8, &["Rallus, U."]), "P102"),
     VolatilityAndTranquility => "Volatility and Tranquility", zlbb("w2501727977", "https://reddit.com/r/opus_magnum/comments/f3n89y/week_4_volatility_and_tranquility/", &[
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::Cost, Metric::Cycles, Metric::AreaV])),
-        (Restriction::DefaultPreDrm, Metric::Ties(&[Metric::AreaV, Metric::Cycles, Metric::Cost])),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cost, Metric::Cycles, Metric::AreaV]))),
+        (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::AreaV, Metric::Cycles, Metric::Cost]))),
     ]),
     VoltaicCoil => "Voltaic Coil", official(Campaign(5), "P039"),
     WakefulnessPotion => "Wakefulness Potion", official(Journal(99, 5, &["Foudre, G."]), "P088"),
@@ -1683,9 +1796,9 @@ puzzles! {
             };
         ",
         &[
-            (Restriction::All(&[Restriction::DefaultPreDrm, Restriction::NoOutputConditionals, Restriction::NoGoldWaste]), ComputationMetric::AverageNoVary(Metric::Ties(&[Metric::Cycles, Metric::Cost]))),
-            (Restriction::All(&[Restriction::DefaultPreDrm, Restriction::NoOutputConditionals, Restriction::NoGoldWaste]), ComputationMetric::AverageNoVary(Metric::Ties(&[Metric::AreaV, Metric::Cycles]))),
-            (Restriction::All(&[Restriction::DefaultPreDrm, Restriction::NoOutputConditionals, Restriction::NoGoldWaste]), ComputationMetric::AverageNoVary(Metric::Ties(&[Metric::Cost, Metric::AreaV]))),
+            (Restriction::All(&[Restriction::DefaultPreDrm, Restriction::NoOutputConditionals, Restriction::NoGoldWaste]), ComputationMetric::AverageNoVary(Metric::Ties(Cow::Borrowed(&[Metric::Cycles, Metric::Cost])))),
+            (Restriction::All(&[Restriction::DefaultPreDrm, Restriction::NoOutputConditionals, Restriction::NoGoldWaste]), ComputationMetric::AverageNoVary(Metric::Ties(Cow::Borrowed(&[Metric::AreaV, Metric::Cycles])))),
+            (Restriction::All(&[Restriction::DefaultPreDrm, Restriction::NoOutputConditionals, Restriction::NoGoldWaste]), ComputationMetric::AverageNoVary(Metric::Ties(Cow::Borrowed(&[Metric::Cost, Metric::AreaV])))),
             (Restriction::All(&[Restriction::DefaultPreDrm, Restriction::NoOutputConditionals, Restriction::NoGoldWaste]), ComputationMetric::AverageNoVary(Metric::Sum(&[Metric::Cost, Metric::Div(&Metric::Cycles, &Metric::Const(5)), Metric::AreaV]))),
         ],
     ),
@@ -1704,4 +1817,22 @@ fn test_puzzles_sorted() -> std::io::Result<()> {
         panic!("puzzles not sorted by name")
     }
     Ok(())
+}
+
+#[cfg(not(feature = "nixos"))]
+#[tokio::test]
+async fn test_metrics() {
+    use std::time::Duration;
+
+    let _ = rustls::crypto::ring::default_provider().install_default();
+    let http_client = reqwest::Client::builder()
+        .user_agent(concat!("MoleculeDb/", env!("CARGO_PKG_VERSION"), " (https://github.com/fenhl/molecule-db)"))
+        .timeout(Duration::from_secs(30))
+        .use_rustls_tls()
+        .hickory_dns(true)
+        .https_only(true)
+        .build().unwrap();
+    for puzzle in all::<Puzzle>() {
+        puzzle.metrics(&http_client).await.expect(&puzzle.to_string());
+    }
 }

@@ -32,7 +32,6 @@ use {
         data::*,
         parse::parse_puzzle,
     },
-    reqwest as _, // gix TLS backend config
     rocket::{
         Responder,
         State,
