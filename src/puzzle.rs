@@ -1020,6 +1020,7 @@ puzzles! {
     DentalAmalgamJournal => "Dental Amalgam (journal)", official(Journal(99, 12, &["Critelli, Z."]), "P252"),
     DestabilizedNature => "Destabilized Nature", critelli("683142751f1988e34bb824ac9302ed20"),
     DoYouRemember => "Do You Remember", zlbb("w1698787731", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/", tournament2019metrics(&[Metric::Div(&Metric::Cost, &Metric::Const(2)), Metric::Cycles, Metric::AreaV])),
+    DowsingRods => "Dowsing Rods", critelli("OM2026Weeklies2_DowsingRods"),
     DurableStitching => "Durable Stitching", official(Journal(108, 9, &["Apia, B."]), "P296"),
     DwarvenFireWine => "Dwarven Fire Wine", zlbb("w1698786588", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/", &[
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cycles, Metric::Cost]))),
