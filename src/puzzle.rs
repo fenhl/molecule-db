@@ -1506,6 +1506,7 @@ puzzles! {
     PrecisionMachineOil => "Precision Machine Oil", official(Campaign(1), "P012"),
     PreservativeSalt => "Preservative Salt", official(Journal(99, 2, &["Fontenelle, A."]), "P060"),
     PreservingWax => "Preserving Wax", official(Journal(108, 3, &["Il Sichay, V."]), "P267"),
+    PrismaticCatalyst => "Prismatic Catalyst", critelli("OM2026Weeklies3_PrismaticCatalyst"),
     ProbeModule => "Probe Module", critelli("OM2023_W5_ProbeModule"),
     ProofOfCompleteness => "Proof of Completeness", official(Journal(99, 4, &["Servin, H."]), "P069"),
     ProspectorsSolvent => "Prospector's Solvent", official(Journal(108, 2, &["Rebbick, S."]), "P261"),
