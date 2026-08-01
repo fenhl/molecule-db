@@ -1727,6 +1727,7 @@ puzzles! {
     VaccineTemplate => "Vaccine Template", critelli("5d936a1ca336f6658f097260eda56a8f"),
     VanBerlosChain => "Van Berlo's Chain", official(Journal(99, 1, &["Van Berlo, C."]), "P055"),
     VanBerlosPivots => "Van Berlo's Pivots", official(Journal(99, 7, &["Kryger, L."]), "P096"),
+    VanBerlosRotor => "Van Berlo's Rotor", critelli("OM2026Weeklies5_VanBerlosRotor"),
     VanBerlosWheel => "Van Berlo's Wheel", official(Journal(99, 1, &["Van Berlo, C."]), "P054"),
     VanishingMaterial => "Vanishing Material", official(Journal(99, 9, &["Price, A."]), "P105"),
     VaporOfLevity => "Vapor of Levity", official(Appendix, "P078"),
@@ -1743,6 +1744,7 @@ puzzles! {
     VirulentVector => "Virulent Vector", zlbb("w1698785238", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/", tournament2019metrics(&[Metric::Div(&Metric::Cost, &Metric::Const(10)), Metric::Cycles, Metric::AreaV])),
     ViscousAdhesive => "Viscous Adhesive", critelli("OM2023Weeklies_ViscousAdhesive"),
     ViscousSludge => "Viscous Sludge", official(Appendix, "P080"),
+    VisibleInk => "Visible Ink?", critelli("OM2026Weeklies4_VisibleInk"),
     VisillaryAnaesthetic => "Visillary Anaesthetic", official(Journal(99, 8, &["Rallus, U."]), "P102"),
     VolatilityAndTranquility => "Volatility and Tranquility", zlbb("w2501727977", "https://reddit.com/r/opus_magnum/comments/f3n89y/week_4_volatility_and_tranquility/", &[
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cost, Metric::Cycles, Metric::AreaV]))),
