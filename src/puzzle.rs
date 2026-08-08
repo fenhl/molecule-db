@@ -902,6 +902,7 @@ puzzles! {
     ]),
     AmeliasCatalyst => "Amelia's Catalyst", critelli("e9d7e303b465bbcba16fc72b0db96bc1"),
     AnimismusBuffer => "Animismus Buffer", official(Journal(99, 8, &["Price, A."]), "P104"),
+    AqueousDagger => "Aqueous Dagger", critelli("OM2026Weeklies6_AqueousDagger"),
     ArmorFilament => "Armor Filament", official(Campaign(2), "P020"),
     ArmorPolish => "Armor Polish", official(Drm(2), "P213"),
     ArqueritePromotion => "Arquerite Promotion", other("https://discord.com/channels/278707932089155584/296373951800541186/857072161097515049", &[
