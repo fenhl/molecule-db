@@ -609,19 +609,23 @@ enum IndexError {
 }
 
 #[rocket::get("/?<m>&<b>")]
-async fn index(config: &State<Config>, http_client: &State<reqwest::Client>, if_none_match: IfNoneMatch<'_>, m: Option<FormMolecule>, b: Option<NonZero<u8>>) -> Result<StaticPageResponse, IndexError> {
-    let (js_state, min_radius, radius, molecule_too_large) = if let Some(FormMolecule(molecule)) = m.clone() {
-        match JsState::new(molecule, b) {
-            Ok((js_state, min_radius)) => (Some(js_state), min_radius, b.unwrap_or_else(|| min_radius.max(NonZero::new(5).unwrap())), false),
-            Err(MoleculeTooLarge { radius, min_radius }) => (None, min_radius, radius, true),
-        }
-    } else {
-        (None, NonZero::<u8>::MIN, b.unwrap_or_else(|| NonZero::new(5).unwrap()), false)
+async fn index(config: &State<Config>, http_client: &State<reqwest::Client>, if_none_match: IfNoneMatch<'_>, m: form::Result<'_, FormMolecule>, b: Option<NonZero<u8>>) -> Result<(Status, StaticPageResponse), IndexError> {
+    let (js_state, min_radius, radius, molecule_too_large, errors) = match m.clone() {
+        Ok(FormMolecule(molecule)) => match JsState::new(molecule, b) {
+            Ok((js_state, min_radius)) => (Some(js_state), min_radius, b.unwrap_or_else(|| min_radius.max(NonZero::new(5).unwrap())), false, form::Errors::default()),
+            Err(MoleculeTooLarge { radius, min_radius }) => (None, min_radius, radius, true, form::Errors::default()),
+        },
+        Err(errors) => (None, NonZero::<u8>::MIN, b.unwrap_or_else(|| NonZero::new(5).unwrap()), false, errors),
     };
-    Ok(static_page(config, http_client, if_none_match, Tab::MoleculeInput, false, "Opus Magnum Molecule Database", html! {
+    Ok((if errors.is_empty() { Status::Ok } else { errors.status() }, static_page(config, http_client, if_none_match, Tab::MoleculeInput, false, "Opus Magnum Molecule Database", html! {
         main(style = "flex-direction: column;") {
             @if molecule_too_large {
                 div(class = "emphasized-section") : "molecule does not fit onto canvas";
+            }
+            @for e in errors {
+                @if e.kind != form::error::ErrorKind::Missing {
+                    div(class = "emphasized-section") : e;
+                }
             }
             h3 : "ENTER MOLECULE TO LOOK UP";
             div(id = "canvas-wrapper") {
@@ -661,7 +665,7 @@ async fn index(config: &State<Config>, http_client: &State<reqwest::Client>, if_
                 updateFromQuery();
             ", serde_json::to_value(js_state)?));
         }
-    }).await)
+    }).await))
 }
 
 #[derive(Deserialize, Serialize)]
@@ -920,7 +924,7 @@ async fn molecules_list(config: &State<Config>, http_client: &State<reqwest::Cli
                             : appearances.iter().filter_map(|(_, _, _, name)| *name).sorted_unstable().dedup().join("/");
                         }
                     }
-                    a(href = uri!(index(Some(FormMolecule(molecule.clone())), _))) : molecule.draw(&format!("product{idx}"));
+                    a(href = uri!(index(Ok(FormMolecule(molecule.clone())), _))) : molecule.draw(&format!("product{idx}"));
                 }
             }
         }

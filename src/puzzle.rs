@@ -41,6 +41,7 @@ use {
     },
     rocket::{
         State,
+        form,
         http::{
             impl_from_uri_param_identity,
             uri,
@@ -426,7 +427,7 @@ pub(crate) async fn get(config: &State<Config>, http_client: &State<reqwest::Cli
                                 span(class = "muted") : "unnamed";
                             }
                         }
-                        a(href = uri!(crate::index(Some(FormMolecule(molecule.clone())), _))) : molecule.draw(&format!("reagent{idx1}_{idx2}"));
+                        a(href = uri!(crate::index(Ok(FormMolecule(molecule.clone())), _))) : molecule.draw(&format!("reagent{idx1}_{idx2}"));
                     }
                 }
             }
@@ -447,7 +448,7 @@ pub(crate) async fn get(config: &State<Config>, http_client: &State<reqwest::Cli
                                 span(class = "muted") : "unnamed";
                             }
                         }
-                        a(href = uri!(crate::index(Some(FormMolecule(molecule.clone())), _))) : molecule.draw(&format!("product{idx1}_{idx2}"));
+                        a(href = uri!(crate::index(Ok(FormMolecule(molecule.clone())), _))) : molecule.draw(&format!("product{idx1}_{idx2}"));
                     }
                 }
             }
