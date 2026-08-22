@@ -19,7 +19,7 @@ use {
     async_proto::Protocol,
     base64::engine::{
         Engine as _,
-        general_purpose::URL_SAFE as BASE64,
+        general_purpose::URL_SAFE_NO_PAD as BASE64,
     },
     enum_iterator::{
         Sequence,
@@ -319,7 +319,7 @@ fn format_atom(atom: Atom) -> &'static str {
 #[rocket::async_trait]
 impl<'v> form::FromFormField<'v> for FormMolecule {
     fn from_value(field: form::ValueField<'v>) -> form::Result<'v, Self> {
-        Ok(Self::read_sync(&mut &*BASE64.decode(field.value).map_err(|e| form::Error::validation(e.to_string()))?).map_err(|e| form::Error::validation(e.to_string()))?)
+        Ok(Self::read_sync(&mut &*BASE64.decode(field.value).or_else(|_| base64::engine::general_purpose::URL_SAFE.decode(field.value)).map_err(|e| form::Error::validation(e.to_string()))?).map_err(|e| form::Error::validation(e.to_string()))?)
     }
 
     async fn from_data(field: form::DataField<'v, '_>) -> form::Result<'v, Self> {
