@@ -538,7 +538,12 @@ impl<'r> FromRequest<'r> for IfNoneMatch<'r> {
 
 #[derive(Responder)]
 enum StaticPageResponse {
-    Fresh((Status, ())),
+    #[response(status = 304)] // Not Modified
+    Fresh {
+        body: (),
+        cache_control: Header<'static>,
+        etag: Header<'static>,
+    },
     Stale {
         body: RawHtml<String>,
         cache_control: Header<'static>,
@@ -547,9 +552,22 @@ enum StaticPageResponse {
     Untagged(RawHtml<String>),
 }
 
+impl StaticPageResponse {
+    fn status(&self) -> Status {
+        match self {
+            Self::Fresh { .. } => Status::NotModified,
+            Self::Stale { .. } | Self::Untagged(_) => Status::Ok,
+        }
+    }
+}
+
 async fn static_page(config: &Config, http_client: &reqwest::Client, if_none_match: IfNoneMatch<'_>, tab: Tab, is_subpage: bool, title: impl ToHtml, content: impl ToHtml, scripts: impl ToHtml) -> StaticPageResponse {
-    if GIT_COMMIT_HASH.is_some_and(|git_commit_hash| if_none_match.matches(&*git_commit_hash.to_string())) {
-        StaticPageResponse::Fresh((Status::NotModified, ()))
+    if let Some(git_commit_hash) = GIT_COMMIT_HASH && if_none_match.matches(&*git_commit_hash.to_string()) {
+        StaticPageResponse::Fresh {
+            body: (),
+            cache_control: Header::new(http::header::CACHE_CONTROL.as_str(), "no-cache"), // ensure etag is validated on each request
+            etag: Header::new(http::header::ETAG.as_str(), format!("\"{git_commit_hash}\"")),
+        }
     } else {
         let body = html! {
             : Doctype;
@@ -617,7 +635,8 @@ async fn index(config: &State<Config>, http_client: &State<reqwest::Client>, if_
         },
         Err(errors) => (None, NonZero::<u8>::MIN, b.unwrap_or_else(|| NonZero::new(5).unwrap()), false, errors),
     };
-    Ok((if errors.is_empty() { Status::Ok } else { errors.status() }, static_page(config, http_client, if_none_match, Tab::MoleculeInput, false, "Opus Magnum Molecule Database", html! {
+    let error_status = (!errors.is_empty()).then(|| errors.status());
+    let page = static_page(config, http_client, if_none_match, Tab::MoleculeInput, false, "Opus Magnum Molecule Database", html! {
         main(style = "flex-direction: column;") {
             @if molecule_too_large {
                 div(class = "emphasized-section") : "molecule does not fit onto canvas";
@@ -663,7 +682,8 @@ async fn index(config: &State<Config>, http_client: &State<reqwest::Client>, if_
                 updateFromQuery();
             ", serde_json::to_value(js_state)?));
         }
-    }).await))
+    }).await;
+    Ok((error_status.unwrap_or_else(|| page.status()), page))
 }
 
 #[derive(Deserialize, Serialize)]
@@ -1098,7 +1118,7 @@ async fn main(Args { subcommand }: Args) -> Result<(), Error> {
             .https_only(true)
             .build()?;
         rocket::custom(rocket::Config::figment().merge(rocket::Config {
-            log_level: Some(rocket::config::Level::ERROR),
+            #[cfg(not(debug_assertions))] log_level: Some(rocket::config::Level::ERROR),
             ..rocket::Config::default()
         }).merge(("port", 24821))) //TODO report issue for lack of typed interface to set port, see https://github.com/rwf2/Rocket/commit/fd294049c784cb52680a423616fadc29d57fa25b
         .mount("/", rocket::routes![
