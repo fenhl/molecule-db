@@ -939,6 +939,7 @@ struct Args {
 
 #[derive(clap::Subcommand)]
 enum Subcommand {
+    EncodingStats,
     Validate,
 }
 
@@ -952,10 +953,12 @@ enum Error {
     #[error(transparent)] GitFindRemote(#[from] gix::remote::find::existing::Error),
     #[error(transparent)] GitOpen(#[from] gix::open::Error),
     #[error(transparent)] GitPrepareFetch(#[from] gix::remote::fetch::prepare::Error),
+    #[error(transparent)] HexIndexEncode(#[from] proto::v0::HexIndexEncodeError),
     #[error(transparent)] Http(#[from] reqwest::Error),
     #[error(transparent)] Rocket(#[from] rocket::Error),
     #[error(transparent)] Url(#[from] url::ParseError),
     #[error(transparent)] Wheel(#[from] wheel::Error),
+    #[error(transparent)] Write(#[from] async_proto::WriteError),
     #[cfg(feature = "night")]
     #[error("failed to locate config file")]
     MissingConfig,
@@ -973,6 +976,31 @@ async fn main(Args { subcommand }: Args) -> Result<(), Error> {
     let _ = rustls::crypto::ring::default_provider().install_default();
     if let Some(subcommand) = subcommand {
         match subcommand {
+            Subcommand::EncodingStats => {
+                let mut buf = Vec::default();
+                let molecules = molecules::molecules();
+                let num_molecules = molecules.len();
+                let mut min_v0_len = usize::MAX;
+                let mut max_v0_len = 0;
+                let mut total_v0_lens = 0;
+                let mut min_v62_len = usize::MAX;
+                let mut max_v62_len = 0;
+                let mut total_v62_lens = 0;
+                for (molecule, _) in molecules {
+                    buf.clear();
+                    proto::v62::write(&molecule, &mut buf).at_unknown()?;
+                    min_v62_len = min_v62_len.min(buf.len() + 1);
+                    max_v62_len = max_v62_len.max(buf.len() + 1);
+                    total_v62_lens += buf.len() + 1;
+                    buf.clear();
+                    proto::v0::ProtocolMolecule::try_from(&FormMolecule(molecule))?.write_sync(&mut buf)?;
+                    min_v0_len = min_v0_len.min(buf.len());
+                    max_v0_len = max_v0_len.max(buf.len());
+                    total_v0_lens += buf.len();
+                }
+                println!("v0: min = {min_v0_len}, avg = {}, max = {max_v0_len}", total_v0_lens as f64 / num_molecules as f64);
+                println!("v62: min = {min_v62_len}, avg = {}, max = {max_v62_len}", total_v62_lens as f64 / num_molecules as f64);
+            }
             Subcommand::Validate => {
                 println!("downloading critelli Gopher index");
                 let mut critelli_puzzles = HashMap::new();

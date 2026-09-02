@@ -5,6 +5,7 @@ use {
     },
     async_proto::Protocol,
     omsim_rs::data::*,
+    super::FormMolecule,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Protocol)]
@@ -21,7 +22,7 @@ impl From<ProtocolHexIndex> for HexIndex {
 
 #[derive(Debug, thiserror::Error)]
 #[error("hex index does not fit into u8")]
-struct HexIndexEncodeError;
+pub(crate) struct HexIndexEncodeError;
 
 impl From<HexIndexEncodeError> for async_proto::WriteErrorKind {
     fn from(e: HexIndexEncodeError) -> Self {
@@ -39,7 +40,7 @@ impl TryFrom<HexIndex> for ProtocolHexIndex {
 }
 
 #[derive(Protocol)]
-enum ProtocolAtom { Salt, Air, Earth, Fire, Water, Quicksilver, Vitae, Mors, Lead, Tin, Iron, Copper, Silver, Gold, Quintessence, Repeat }
+pub(super) enum ProtocolAtom { Salt, Air, Earth, Fire, Water, Quicksilver, Vitae, Mors, Lead, Tin, Iron, Copper, Silver, Gold, Quintessence, Repeat }
 
 impl From<ProtocolAtom> for Atom {
     fn from(value: ProtocolAtom) -> Self {
@@ -135,7 +136,7 @@ impl<'a> TryFrom<&'a Bond> for ProtocolBond {
 }
 
 #[derive(Protocol)]
-struct ProtocolMolecule {
+pub(crate) struct ProtocolMolecule {
     #[async_proto(max_len = 61)]
     atoms: HashMap<ProtocolHexIndex, ProtocolAtom>,
     #[async_proto(max_len = 156)]
@@ -161,7 +162,3 @@ impl<'a> TryFrom<&'a FormMolecule> for ProtocolMolecule {
         })
     }
 }
-
-#[derive(Clone, Protocol)]
-#[async_proto(via = ProtocolMolecule)]
-pub(crate) struct FormMolecule(pub(crate) Molecule);
