@@ -1142,6 +1142,7 @@ async fn main(Args { subcommand }: Args) -> Result<(), Error> {
             puzzle::get,
         ])
         .mount("/static", FileServer::without_index("assets/static"))
+        //TODO error catchers
         .manage(config)
         .manage(http_client)
         .manage({

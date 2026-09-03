@@ -429,6 +429,7 @@ pub(crate) async fn get(config: &State<Config>, http_client: &State<reqwest::Cli
 
                 let mut json = mw_api.get_query_api_json_all(&collect![
                     format!("action") => format!("query"),
+                    format!("formatversion") => format!("2"),
                     format!("titles") => puzzle.to_string(),
                 ]).await?;
                 let Response { query: Query { pages: [Page { missing }] } } = serde_json::from_value(json)?;
