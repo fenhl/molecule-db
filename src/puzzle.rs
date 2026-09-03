@@ -1642,7 +1642,7 @@ puzzles! {
     ]),
     SweeperRod => "Sweeper Rod", critelli("OM2022Weeklies_SweeperRod"),
     SwordAlloy => "Sword Alloy", official(Campaign(4), "P033"),
-    SynthesisViaAlcohol => "Synthesis via Alcohol", official(Journal(99, 4, &["Servin, H."]), "P071"),
+    SynthesisViaAlcohol => "Synthesis Via Alcohol", official(Journal(99, 4, &["Servin, H."]), "P071"),
     SyntheticMalachite => "Synthetic Malachite", official(Journal(99, 9, &["Klusseter, S."]), "P109"),
     Taricene => "Taricene", critelli("21042bbbbef69aef2000df9b97a4df9b"),
     TaxFraud => "Tax Fraud", critelli("a39b83445002fbdea218e8b184a9e478"),
