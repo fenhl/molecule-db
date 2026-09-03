@@ -1466,6 +1466,7 @@ puzzles! {
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cycles, Metric::Cost, Metric::Instructions]))),
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Instructions, Metric::Cost, Metric::Cycles]))),
     ]),
+    PaintPreserver => "Paint Preserver", critelli("OM2026Weeklies7_PaintPreserver"),
     PalatableTissue => "Palatable Tissue", critelli("OM2024Weeklies_PalatableTissue"),
     Panacea => "Panacea", zlbb("w1698789743", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/", tournament2019metrics(&[Metric::Cost, Metric::Cycles, Metric::AreaV])),
     PanaceaToPoison => "Panacea to Poison", zlbb("w2450511665", "https://drive.google.com/drive/folders/1-Ky7fk653U6Zr9bPgEzGDtI3QX7vVJlE", &[
