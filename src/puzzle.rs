@@ -435,7 +435,12 @@ pub(crate) async fn get(config: &State<Config>, http_client: &State<reqwest::Cli
                 let Response { query: Query { pages: [Page { missing }] } } = serde_json::from_value(json)?;
                 missing
             };
-            : external_link_class(config, http_client, if missing { "redlink" } else { "" }, &format!("https://omwiki.hoekri.nl/index.php/{}", puzzle.as_str().replace(' ', "_")), "Wiki article").await?;
+            @let url = {
+                let mut url = Url::parse("https://omwiki.hoekri.nl/index.php").unwrap();
+                url.path_segments_mut().unwrap().push(&puzzle.as_str().replace(' ', "_"));
+                url
+            };
+            : external_link_class(config, http_client, if missing { "redlink" } else { "" }, url.as_str(), "Wiki article").await?;
         }
         @if let Puzzle::MemoryLane = puzzle {
             p : "Note: The mapping from the variable input to the variable output is defined by each individual solution. This page shows a random encoding, refresh it to generate a new one.";
