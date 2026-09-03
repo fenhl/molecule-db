@@ -14,6 +14,7 @@ use {
         iter,
         num::NonZero,
         sync::LazyLock,
+        time::Duration,
     },
     bitvec::prelude::*,
     chrono::prelude::*,
@@ -1023,6 +1024,10 @@ puzzles! {
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::AreaV, Metric::Cycles, Metric::Cost]))),
     ]),
     CompoundAnaesthetic => "Compound Anaesthetic", official(Journal(99, 11, &["Azur, I."]), "P244"),
+    CompressedSoil => "Compressed Soil", other("https://discord.com/channels/278707932089155584/916727904942047292", &[
+        (Restriction::DefaultPreDrm, Metric::SpeedsolveMins),
+        (Restriction::DefaultPreDrm, Metric::Sum(&[Metric::Cost, Metric::Cycles, Metric::AreaV, Metric::Instructions])),
+    ]),
     ConductiveEnamel => "Conductive Enamel", official(Journal(99, 6, &["Henderson, I."]), "P093"),
     ConnectTheDots => "Connect the Dots", zlbb("w3101135731", "https://reddit.com/r/opus_magnum/comments/eohzw1/opus_magnum_tournament_2020/", &[]),
     CoolEarrings => "Cool Earrings", critelli("OM2023_WO_CoolEarrings"),
@@ -1089,6 +1094,10 @@ puzzles! {
     ElementalJewelSetting => "Elemental Jewel Setting", zlbb("w2450512809", "https://drive.google.com/drive/folders/1P7fsijiuJTI-1LKrpT7IMn7nj2V5PAvC", &[
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::AreaV, Metric::Cycles, Metric::Cost]))),
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Sum(&[Metric::Cost, Metric::Cycles, Metric::AreaV]), Metric::Cost, Metric::Cycles]))),
+    ]),
+    ElementalLifeStudy => "Elemental Life Study", other("https://discord.com/channels/278707932089155584/909244356584673301/909548321662730311", &[
+        (Restriction::DefaultPreDrm, Metric::SpeedsolveMins),
+        (Restriction::DefaultPreDrm, Metric::Sum(&[Metric::Product(&Metric::SpeedsolveMins, &Metric::Const(2)), Metric::Cycles])),
     ]),
     EmbalmingFluid => "Embalming Fluid", official(Journal(99, 9, &["Day, A."]), "P108"),
     EmergencyAntidote => "Emergency Antidote", zlbb("w2450512232", "https://drive.google.com/drive/folders/1SL0WExUVLu6_xsvZCA9z29PH6RuFBrBd", &[
@@ -1237,6 +1246,9 @@ puzzles! {
     InvariantMetal => "Invariant Metal", official(Drm(3), "P215"),
     InvigoratingTonic => "Invigorating Tonic", official(Journal(108, 8, &["Silva, J."]), "P291"),
     InvisibleInk => "Invisible Ink", official(Campaign(4), "P032"),
+    IrritantGas => "Irritant Gas", other("https://discord.com/channels/278707932089155584/370367639073062922/904414425216344204", &[
+        (Restriction::DefaultPreDrm, Metric::SpeedsolveMins),
+    ]),
     JewelBox => "Jewel Box", critelli("OM2025Weeklies1_JewelBox"),
     Lambent29 => "Lambent II/IX", official(Journal(99, 1, &["Van Berlo, C."]), "P058"),
     Lambent67 => "Lambent LXVII", critelli_computation(
@@ -1674,6 +1686,10 @@ puzzles! {
     ThermalFuse => "Thermal Fuse", critelli("d3689000418b9687654554f28324d8d0"),
     ThermicCapacitor => "Thermic Capacitor", critelli("om2025week2_Thermic_Capacitor"),
     ThermiteTape => "Thermite Tape", critelli("OM2025Weeklies3_ThermiteTape"),
+    ThingsIWontWorkWith => "Things I Won't Work With", other("https://discord.com/channels/278707932089155584/918884273602302002", &[
+        (Restriction::DefaultPreDrm, Metric::SpeedsolveMins),
+        (Restriction::DefaultPreDrm, Metric::Sum(&[Metric::Cost, Metric::Cycles, Metric::AreaV, Metric::Instructions])),
+    ]),
     TimingCrystal => "Timing Crystal", official(Campaign(5), "P042"),
     Tinsel => "Tinsel", critelli("bf33acfc5ce6933ae39b8ee5deb663af"),
     TonicOfHydration => "Tonic of Hydration", official(Journal(99, 5, &["Klusseter, S."]), "P089"),
@@ -1735,6 +1751,10 @@ puzzles! {
     UmbralMascara => "Umbral Mascara", official(Journal(108, 8, &["Demos, A."]), "P292"),
     UniversalCompound => "Universal Compound", official(Journal(99, 4, &["Tolomeo, N."]), "P072"),
     UniversalOintment => "Universal Ointment", official(Journal(108, 12, &["Demos, A."]), "P314"),
+    UniversalPlaster => "Universal Plaster", other("https://discord.com/channels/278707932089155584/911404167598329906", &[
+        (Restriction::DefaultPreDrm, Metric::SpeedsolveMins),
+        (Restriction::DefaultPreDrm, Metric::Sum(&[Metric::Cost, Metric::Cycles, Metric::AreaV])),
+    ]),
     UniversalSolvent => "Universal Solvent", official(Campaign(5), "P043"),
     UnnamedCustomPuzzle => "Unnamed Custom Puzzle", critelli_computation(
         "OM2025Weeklies12_Unnamed",
@@ -1774,6 +1794,10 @@ puzzles! {
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Sum(&[Metric::Cost, Metric::Cycles, Metric::AreaV]), Metric::Instructions]))),
     ]),
     VaporousSolvent => "Vaporous Solvent", official(Journal(99, 7, &["Klusseter, S."]), "P098"),
+    VaporousSolventToStainRemover => "Vaporous Solvent to Stain Remover", other("https://discord.com/channels/278707932089155584/921747482386501642", &[
+        (Restriction::All(&[Restriction::DefaultPreDrm, Restriction::Le(Metric::AreaV, Metric::Const(100))]), Metric::SpeedsolveMins),
+        (Restriction::All(&[Restriction::DefaultPreDrm, Restriction::Trackless]), Metric::Ties(Cow::Borrowed(&[Metric::Instructions, Metric::Cost]))),
+    ]),
     VerdigrisGlaze => "Verdigris Glaze", official(Journal(108, 10, &["Ironside, F."]), "P302"),
     VermilionPigment => "Vermilion Pigment", official(Journal(108, 5, &["Adam, V."]), "P276"),
     VeryDarkThread => "Very Dark Thread", official(Campaign(3), "P029"),

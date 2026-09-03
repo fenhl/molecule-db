@@ -4,6 +4,7 @@ use {
     std::{
         borrow::Cow,
         str::FromStr,
+        time::Duration,
     },
     omsim_rs::data::*,
     rocket::response::content::RawHtml,
@@ -25,6 +26,8 @@ pub(crate) enum Restriction {
     DefaultPreDrm,
     /// The two metrics must have equal values.
     Eq(Metric, Metric),
+    /// The first metric's value must be lower than or equal to the second metric's.
+    Le(Metric, Metric),
     /// The solution must enter a steady state where it keeps producing every product.
     Looping,
     /// Gold waste must not accumulate in the steady state.
@@ -76,6 +79,11 @@ impl ToHtml for Restriction {
                     : " = ";
                     : m2;
                 }
+                Self::Le(m1, m2) => {
+                    : m1;
+                    : " ≤ ";
+                    : m2;
+                }
                 Self::Looping => : "looping";
                 Self::NoGoldWaste => : "no gold waste";
                 Self::NoOutputBondConditionals => : "no output bond conditionals";
@@ -116,6 +124,7 @@ pub(crate) enum Metric {
     Product(&'static Metric, &'static Metric),
     Rate,
     Shitpost,
+    SpeedsolveMins,
     Sum(&'static [Metric]),
     Ties(Cow<'static, [Metric]>),
     Tracks,
@@ -208,6 +217,7 @@ impl ToHtml for Metric {
                     : m2;
                 }
                 Self::Rate => : "Rate";
+                Self::SpeedsolveMins => : "Minutes to Solve";
                 Self::Shitpost => : "Shitpost";
                 Self::Sum(metrics) => @if let Some((first, rest)) = metrics.split_first() {
                     : first;
