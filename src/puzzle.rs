@@ -22,10 +22,7 @@ use {
         Sequence,
         all,
     },
-    itermore::{
-        IterArrayCombinationsWithReps as _,
-        IterArrayWindows as _,
-    },
+    itermore::IterArrayCombinationsWithReps as _,
     itertools::Itertools as _,
     log_lock::*,
     nonempty_collections::{
@@ -65,7 +62,9 @@ use {
         MoleculeExt as _,
         StaticPageResponse,
         Tab,
+        dynamic_page,
         external_link,
+        external_link_class,
         metric::{
             ComputationMetric,
             Metric,
@@ -388,13 +387,15 @@ pub(crate) async fn index(config: &State<Config>, http_client: &State<reqwest::C
 
 #[derive(Debug, thiserror::Error, rocket_util::Error)]
 pub(crate) enum GetError {
+    #[error(transparent)] Json(#[from] serde_json::Error),
+    #[error(transparent)] MediaWiki(#[from] mediawiki::MediaWikiError),
     #[error(transparent)] Metrics(#[from] MetricsError),
     #[error(transparent)] Other(#[from] Error),
 }
 
 #[rocket::get("/puzzle/<puzzle>")]
-pub(crate) async fn get(config: &State<Config>, http_client: &State<reqwest::Client>, if_none_match: IfNoneMatch<'_>, puzzle: Puzzle) -> Result<StaticPageResponse, GetError> {
-    Ok(static_page(config, http_client, if_none_match, Tab::Puzzles, true, html! {
+pub(crate) async fn get(config: &State<Config>, http_client: &State<reqwest::Client>, mw_api: &State<mediawiki::api::Api>, puzzle: Puzzle) -> Result<RawHtml<String>, GetError> {
+    Ok(dynamic_page(config, http_client, Tab::Puzzles, true, html! {
         : puzzle;
         : " — Opus Magnum Molecule Database";
     }, html! {
@@ -407,6 +408,33 @@ pub(crate) async fn get(config: &State<Config>, http_client: &State<reqwest::Cli
                 Source::Official { collection, .. } | Source::OfficialNonLb { collection } => : collection;
                 Source::Tutorial => : "tutorial";
             }
+        }
+        p {
+            @let missing = {
+                #[derive(Deserialize)]
+                struct Response {
+                    query: Query,
+                }
+
+                #[derive(Deserialize)]
+                struct Query {
+                    pages: [Page; 1],
+                }
+
+                #[derive(Deserialize)]
+                struct Page {
+                    #[serde(default)]
+                    missing: bool,
+                }
+
+                let mut json = mw_api.get_query_api_json_all(&collect![
+                    format!("action") => format!("query"),
+                    format!("titles") => puzzle.to_string(),
+                ]).await?;
+                let Response { query: Query { pages: [Page { missing }] } } = serde_json::from_value(json)?;
+                missing
+            };
+            : external_link_class(config, http_client, if missing { "redlink" } else { "" }, &format!("https://omwiki.hoekri.nl/index.php/{}", puzzle.as_str().replace(' ', "_")), "Wiki article").await?;
         }
         @if let Puzzle::MemoryLane = puzzle {
             p : "Note: The mapping from the variable input to the variable output is defined by each individual solution. This page shows a random encoding, refresh it to generate a new one.";

@@ -33,26 +33,27 @@ night = [
 nixos = []
 
 [build-dependencies]
-gix = "0.83" # much slower than git2 but avoids a C dependency on openssl-sys
-itertools = "0.14"
+gix = "0.87" # much slower than git2 but avoids a C dependency on openssl-sys
+itertools = "0.15"
 thiserror = "2"
 
 [dependencies]
 async-proto = "0.26"
-base64 = "0.22"
+base64 = "0.23"
 bitstream-io = "4"
 bitvec = { version = "1", default-features = false, features = ["atomic"] }
 chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "4", features = ["derive"] }
 collect-mac = "0.1"
 enum-iterator = "2"
-gix = { version = "0.83", features = ["blocking-http-transport-reqwest"] }
+gix = { version = "0.87", features = ["blocking-http-transport-reqwest"] }
 gophermap = "0.1"
 http = "1"
 itermore = { version = "0.8", features = ["array_combinations_with_reps", "array_windows"] }
-itertools = "0.14"
+itertools = "0.15"
 lazy-regex = "3"
 log-lock = { git = "https://github.com/fenhl/log-lock" }
+mediawiki = { version = "0.5", default-features = false }
 mimalloc = "0.1"
 nonempty-collections = "1"
 omsim-rs = { git = "https://github.com/fenhl/omsim-rs" }

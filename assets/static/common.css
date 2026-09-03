@@ -124,3 +124,6 @@ ul {
 .muted {
     color: light-dark(#445, #bbbbc2);
 }
+.redlink {
+    color: #e33;
+}

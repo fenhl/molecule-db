@@ -388,10 +388,10 @@ fn night_report_sync(config: &Config, path: &str, extra: Option<&str>) -> Result
     Ok(())
 }
 
-async fn external_link(#[cfg_attr(not(feature = "night"), allow(unused))] config: &Config, #[cfg_attr(not(feature = "night"), allow(unused))] http_client: &reqwest::Client, url: &str, display: impl ToHtml) -> Result<RawHtml<String>, Error> {
+async fn external_link_class(#[cfg_attr(not(feature = "night"), allow(unused))] config: &Config, #[cfg_attr(not(feature = "night"), allow(unused))] http_client: &reqwest::Client, class: &str, url: &str, display: impl ToHtml) -> Result<RawHtml<String>, Error> {
     let url = Url::parse(url)?;
     Ok(html! {
-        a(href = url) {
+        a(class = class, href = url) {
             @match url.host_str() {
                 Some("discord.com") => img(class = "favicon", alt = "external link (discord.com)", src = static_url!("discord-favicon.ico"));
                 Some("github.com") => picture(class = "favicon") {
@@ -401,6 +401,7 @@ async fn external_link(#[cfg_attr(not(feature = "night"), allow(unused))] config
                 Some("drive.google.com") => img(class = "favicon", alt = "external link (drive.google.com)", src = "https://www.gstatic.com/images/branding/productlogos/drive_2026/v1/web-32dp/logo_drive_2026_color_1x_web_32dp.png");
                 Some("reddit.com") => img(class = "favicon", alt = "external link (reddit.com)", srcset = "https://www.redditstatic.com/shreddit/assets/favicon/64x64.png 64w, https://www.redditstatic.com/shreddit/assets/favicon/128x128.png 128w, https://www.redditstatic.com/shreddit/assets/favicon/192x192.png 192w");
                 Some("fenhl.net" | "status.fenhl.net") => img(class = "favicon", alt = "external link (fenhl.net)", srcset = "https://fenhl.net/static/ava/pineapple/p-sq-16.png 16w, https://fenhl.net/static/ava/pineapple/p-sq-32.png 32w, https://fenhl.net/static/ava/pineapple/p-sq-64.png 64w, https://fenhl.net/static/ava/pineapple/p-sq-128.png 128w, https://fenhl.net/static/ava/pineapple/p-sq-256.png 256w");
+                Some("omwiki.hoekri.nl") => img(class = "favicon", alt = "external link (omwiki.hoekri.nl)", src = "https://omwiki.hoekri.nl/resources/assets/omHex.svg");
                 Some("critelli.technology") => svg(class = "favicon", xmlns = "http://www.w3.org/2000/svg", viewBox = "0 0 24 24") {
                     path(style = "fill: light-dark(black, white)", d = "M21.658 3.786l-3.658 3.318v-1.104c0-3.313-2.687-6-6-6s-6 2.687-6 6v4h-3v10.707l-2 1.813 1.346 1.48 20.654-18.734-1.342-1.48zm-5.658 5.132l-1.194 1.082h-6.806v-4c0-2.205 1.795-4 4-4s4 1.795 4 4v2.918zm5 1.082v14h-16.391l15.422-14h.969z");
                 }
@@ -421,6 +422,10 @@ async fn external_link(#[cfg_attr(not(feature = "night"), allow(unused))] config
             : display;
         }
     })
+}
+
+async fn external_link(#[cfg_attr(not(feature = "night"), allow(unused))] config: &Config, #[cfg_attr(not(feature = "night"), allow(unused))] http_client: &reqwest::Client, url: &str, display: impl ToHtml) -> Result<RawHtml<String>, Error> {
+    external_link_class(config, http_client, "", url, display).await
 }
 
 #[derive(PartialEq, Eq, Sequence)]
@@ -444,6 +449,49 @@ impl Tab {
             Self::MoleculeInput => "Molecule input",
             Self::MoleculeList => "Molecule list",
             Self::Puzzles => "Puzzles",
+        }
+    }
+}
+
+async fn dynamic_page(config: &Config, http_client: &reqwest::Client, tab: Tab, is_subpage: bool, title: impl ToHtml, content: impl ToHtml, scripts: impl ToHtml) -> RawHtml<String> {
+    html! {
+        : Doctype;
+        html {
+            head {
+                meta(charset = "utf-8");
+                title : title;
+                meta(name = "viewport", content = "width=device-width, initial-scale=1, shrink-to-fit=no");
+                link(rel = "icon", href = static_url!("favicon.svg"));
+                link(rel = "stylesheet", href = static_url!("common.css"));
+                script(src = static_url!("common.js"));
+            }
+            body {
+                nav {
+                    @for iter_tab in all::<Tab>() {
+                        a(class = if tab == iter_tab { "button selected" } else { "button" }, href? = (tab != iter_tab || is_subpage).then(|| iter_tab.uri())) : iter_tab.label();
+                    }
+                }
+                : content;
+                footer(class = "muted") {
+                    hr;
+                    p {
+                        : "Opus Magnum molecule database hosted by ";
+                        : external_link(config, http_client, "https://fenhl.net/", "Fenhl").await.unwrap();
+                        : " • ";
+                        : external_link(config, http_client, "https://fenhl.net/disc", "disclaimer").await.unwrap();
+                        : " • ";
+                        : external_link(config, http_client, "https://status.fenhl.net/", "status").await.unwrap();
+                        : " • ";
+                        : external_link(config, http_client, "https://github.com/fenhl/molecule-db", "source code").await.unwrap();
+                    }
+                    p {
+                        : "Special thanks to panic whose ";
+                        : external_link(config, http_client, "http://critelli.technology/transmogrification.html", "Tonic of Transmogrification reagent builder").await.unwrap();
+                        : " served as the basis for parts of this website's code!";
+                    }
+                }
+                : scripts;
+            }
         }
     }
 }
@@ -569,46 +617,7 @@ async fn static_page(config: &Config, http_client: &reqwest::Client, if_none_mat
             etag: Header::new(http::header::ETAG.as_str(), format!("\"{git_commit_hash}\"")),
         }
     } else {
-        let body = html! {
-            : Doctype;
-            html {
-                head {
-                    meta(charset = "utf-8");
-                    title : title;
-                    meta(name = "viewport", content = "width=device-width, initial-scale=1, shrink-to-fit=no");
-                    link(rel = "icon", href = static_url!("favicon.svg"));
-                    link(rel = "stylesheet", href = static_url!("common.css"));
-                    script(src = static_url!("common.js"));
-                }
-                body {
-                    nav {
-                        @for iter_tab in all::<Tab>() {
-                            a(class = if tab == iter_tab { "button selected" } else { "button" }, href? = (tab != iter_tab || is_subpage).then(|| iter_tab.uri())) : iter_tab.label();
-                        }
-                    }
-                    : content;
-                    footer(class = "muted") {
-                        hr;
-                        p {
-                            : "Opus Magnum molecule database hosted by ";
-                            : external_link(config, http_client, "https://fenhl.net/", "Fenhl").await.unwrap();
-                            : " • ";
-                            : external_link(config, http_client, "https://fenhl.net/disc", "disclaimer").await.unwrap();
-                            : " • ";
-                            : external_link(config, http_client, "https://status.fenhl.net/", "status").await.unwrap();
-                            : " • ";
-                            : external_link(config, http_client, "https://github.com/fenhl/molecule-db", "source code").await.unwrap();
-                        }
-                        p {
-                            : "Special thanks to panic whose ";
-                            : external_link(config, http_client, "http://critelli.technology/transmogrification.html", "Tonic of Transmogrification reagent builder").await.unwrap();
-                            : " served as the basis for parts of this website's code!";
-                        }
-                    }
-                    : scripts;
-                }
-            }
-        };
+        let body = dynamic_page(config, http_client, tab, is_subpage, title, content, scripts).await;
         if let Some(git_commit_hash) = GIT_COMMIT_HASH {
             StaticPageResponse::Stale {
                 cache_control: Header::new(http::header::CACHE_CONTROL.as_str(), "no-cache"), // ensure etag is validated on each request
@@ -973,6 +982,7 @@ enum Error {
     #[error(transparent)] GitPrepareFetch(#[from] gix::remote::fetch::prepare::Error),
     #[error(transparent)] HexIndexEncode(#[from] proto::v0::HexIndexEncodeError),
     #[error(transparent)] Http(#[from] reqwest::Error),
+    #[error(transparent)] MediaWiki(#[from] mediawiki::MediaWikiError),
     #[error(transparent)] Rocket(#[from] rocket::Error),
     #[error(transparent)] Url(#[from] url::ParseError),
     #[error(transparent)] Wheel(#[from] wheel::Error),
@@ -1134,6 +1144,16 @@ async fn main(Args { subcommand }: Args) -> Result<(), Error> {
         .mount("/static", FileServer::without_index("assets/static"))
         .manage(config)
         .manage(http_client)
+        .manage({
+            let mut api = mediawiki::api::Api::new_from_builder("https://omwiki.hoekri.nl/api.php", reqwest::Client::builder()
+                .timeout(Duration::from_secs(30))
+                .use_rustls_tls()
+                .hickory_dns(true)
+                .https_only(true)
+            ).await?;
+            api.set_user_agent(concat!("MoleculeDb/", env!("CARGO_PKG_VERSION"), " (https://github.com/fenhl/molecule-db)"));
+            api
+        })
         .launch().await?;
     }
     Ok(())
