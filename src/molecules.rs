@@ -346,6 +346,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, u8, u8, Option<&'static
             (Puzzle::Lodestone, 2, 0, Some("Elemental Copper")),
             (Puzzle::SteelWool, 1, 0, Some("Elemental Copper")),
             (Puzzle::MildSteel, 1, 0, Some("Elemental Copper")),
+            (Puzzle::FuckISpilledMyMetalsEverywhereCanYouHelpMePickThemUp, 1, 1, Some("Elemental Copper")),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Earth], bonds: collect![] }, vec![
             (Puzzle::FacePowder, 1, 0, Some("Elemental Earth")),
@@ -460,6 +461,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, u8, u8, Option<&'static
             (Puzzle::QuickeningCordial, 1, 0, Some("Elemental Gold (1)")),
             (Puzzle::UmbralMascara, 1, 0, Some("Elemental Gold (1)")),
             (Puzzle::GuipureLace, 2, 0, Some("Elemental Gold (1)")),
+            (Puzzle::FuckISpilledMyMetalsEverywhereCanYouHelpMePickThemUp, 1, 1, Some("Elemental Gold (1)")),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Gold, HexIndex { q: 1, r: 0 } => Atom::Gold, HexIndex { q: 2, r: 0 } => Atom::Gold, HexIndex { q: 3, r: 0 } => Atom::Repeat], bonds: collect![Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 1, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 0 }, end: HexIndex { q: 2, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 0 }, end: HexIndex { q: 3, r: 0 }, ty: BondType::Normal }] }, vec![
             (Puzzle::ElectrumSeparation, 0, 1, Some("Elemental Gold (2)")),
@@ -488,6 +490,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, u8, u8, Option<&'static
             (Puzzle::MirroringAmalgam, 1, 0, Some("Elemental Iron")),
             (Puzzle::MosaicTessera, 1, 0, Some("Elemental Iron")),
             (Puzzle::SurrendierFlareSalt, 1, 0, Some("Iron")),
+            (Puzzle::FuckISpilledMyMetalsEverywhereCanYouHelpMePickThemUp, 1, 1, Some("Elemental Iron")),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Lead], bonds: collect![] }, vec![
             (Puzzle::RefinedGold, 1, 0, Some("Elemental Lead")),
@@ -529,6 +532,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, u8, u8, Option<&'static
             (Puzzle::ProspectorsSolvent, 1, 0, Some("Elemental Lead")),
             (Puzzle::MineralOil, 1, 0, Some("Elemental Lead")),
             (Puzzle::BrilliantPigment, 1, 0, Some("Elemental Lead")),
+            (Puzzle::FuckISpilledMyMetalsEverywhereCanYouHelpMePickThemUp, 1, 1, Some("Elemental Lead")),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Mors], bonds: collect![] }, vec![
             (Puzzle::AssassinsFilament, 1, 0, Some("Elemental Mors")),
@@ -588,6 +592,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, u8, u8, Option<&'static
             (Puzzle::MosaicTessera, 1, 0, Some("Elemental Quicksilver")),
             (Puzzle::MineralOil, 1, 0, Some("Elemental Quicksilver")),
             (Puzzle::LapisSolaris, 1, 0, Some("Elemental Quicksilver")),
+            (Puzzle::FuckISpilledMyMetalsEverywhereCanYouHelpMePickThemUp, 1, 1, Some("Elemental Quicksilver")),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Quintessence], bonds: collect![] }, vec![
             (Puzzle::ProofOfCompleteness, 1, 0, Some("Elemental Quintessence")),
@@ -675,6 +680,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, u8, u8, Option<&'static
             (Puzzle::Electrum, 1, 0, Some("Elemental Silver (2)")),
             (Puzzle::LapisSolaris, 1, 0, Some("Elemental Silver (2)")),
             (Puzzle::PrismaticCatalyst, 1, 0, Some("Elemental Silver (2)")),
+            (Puzzle::FuckISpilledMyMetalsEverywhereCanYouHelpMePickThemUp, 1, 1, Some("Elemental Silver (2)")),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Tin], bonds: collect![] }, vec![
             (Puzzle::FragrantPowders, 1, 0, Some("Elemental Tin")),
@@ -693,6 +699,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, u8, u8, Option<&'static
             (Puzzle::DurableStitching, 1, 0, Some("Elemental Tin")),
             (Puzzle::ShimmeringChain, 1, 0, Some("Elemental Tin")),
             (Puzzle::MistOfClarification, 1, 0, Some("Elemental Tin")),
+            (Puzzle::FuckISpilledMyMetalsEverywhereCanYouHelpMePickThemUp, 1, 1, Some("Elemental Tin")),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Vitae], bonds: collect![] }, vec![
             (Puzzle::HealthTonic, 1, 0, Some("Elemental Vitae")),

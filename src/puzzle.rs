@@ -1119,6 +1119,7 @@ puzzles! {
     FlakeSalt => "Flake Salt", critelli("Week_-1_FlakeSalt"),
     FragrantPowders => "Fragrant Powders", official(Appendix, "P075"),
     FructifyingWater => "Fructifying Water", official(Journal(108, 7, &["Thinnes, Y."]), "P289"),
+    FuckISpilledMyMetalsEverywhereCanYouHelpMePickThemUp => "Fuck I Spilled My Metals Everywhere Can You Help Me Pick Them Up", critelli("OM2026Weeklies8_FISMMECYHMPTU"),
     Fulmination => "Fulmination", critelli("Week_6_Fulmination"),
     GalenaSeparation => "Galena Separation", official(Drm(1), "P207"),
     Galvanization => "Galvanization", critelli("58aea7d6d7ba1b4e8b73d2219de0a8cc"),
