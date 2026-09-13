@@ -1042,6 +1042,7 @@ puzzles! {
         (Restriction::WithConduits(&Restriction::DefaultPreDrm, vec![Conduit { pos_a: HexIndex { q: -1, r: 0 }, pos_b: HexIndex { q: 1, r: 0 }, hexes: vec![HexIndex { q: 0, r: 0 }] }]), Metric::Ties(Cow::Borrowed(&[Metric::HeightV, Metric::Cycles, Metric::Cost]))),
         (Restriction::WithConduits(&Restriction::All(&[Restriction::DefaultPreDrm, Restriction::Trackless]), vec![Conduit { pos_a: HexIndex { q: -1, r: 0 }, pos_b: HexIndex { q: 1, r: 0 }, hexes: vec![HexIndex { q: 0, r: 0 }] }]), Metric::Ties(Cow::Borrowed(&[Metric::Instructions, Metric::AreaV, Metric::Cycles]))),
     ]),
+    CritellicSlag => "Critellic Slag", critelli("DarkBricksPuzzleGauntlet-4174"),
     Critellium => "Critellium", critelli("e8f14a0982aaacbb3254457e77c23a0b"),
     CrystalCompression => "Crystal Compression", other("https://discord.com/channels/278707932089155584/296373951800541186/862141779825655818", &[
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Latency, Metric::Cost, Metric::AreaV]))),
@@ -1070,6 +1071,7 @@ puzzles! {
         (Restriction::DefaultPreDrm, Metric::Sum(&[Metric::Cost, Metric::Div(&Metric::Cycles, &Metric::Const(2)), Metric::Instructions])),
     ]),
     DyeHard => "Dye Hard", critelli("OM2023Weeklies_DyeHard"),
+    ElectrolysedLitharge => "Electrolysed Litharge", critelli("DarkBricksPuzzleGauntlet-7506"),
     Electrum => "Electrum", official(Journal(108, 10, &["Icai, J."]), "P303"),
     ElectrumSeparation => "Electrum Separation", official(Journal(99, 8, &["Rallus, U."]), "P103"),
     ElementalComparator => "Elemental Comparator", critelli_computation(
@@ -1171,6 +1173,7 @@ puzzles! {
     GlitraPaint => "Glitra Paint", official(Journal(108, 5, &["Fauss, A."]), "P275"),
     GlorpsConstruct => "Glorp's Construct", critelli("b721b7ba8e14db667d5ea374eaca9a9e"),
     GoldenThread => "Golden Thread", official(Campaign(4), "P037"),
+    GraphitePress => "Graphite Press", critelli("37da748e3433bff2d9c4e3c7537c2b08"),
     GreenVitriol => "Green Vitriol (2021 weeklies)", zlbb("w2539581468", "https://discord.com/channels/278707932089155584/296373951800541186/859612178902286376", &[
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cycles, Metric::Cost, Metric::AreaV]))),
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Sum(&[Metric::Cost, Metric::Cycles, Metric::AreaV]), Metric::Instructions]))),
@@ -1499,6 +1502,7 @@ puzzles! {
     MistOfGlaciation => "Mist of Glaciation", official(Journal(108, 6, &["Mann, M."]), "P283"),
     MistOfHallucination => "Mist of Hallucination", official(Campaign(5), "P038"),
     MistOfIncapacitation => "Mist of Incapacitation", official(Campaign(2), "P018"),
+    MistsOfProjection => "Mists of Projection", critelli("DarkBricksPuzzleGauntlet-8774"),
     MixedUseLubricant => "Mixed-Use Lubricant", official(Drm(1), "P205"),
     MoonlightCatalyst => "Moonlight Catalyst", critelli("OM2025Weeklies11_MoonlightCatalyst"),
     MooringCable => "Mooring Cable", official(Journal(108, 1, &["Pugano, P."]), "P255"),
@@ -1558,6 +1562,7 @@ puzzles! {
     PreservingWax => "Preserving Wax", official(Journal(108, 3, &["Il Sichay, V."]), "P267"),
     PrismaticCatalyst => "Prismatic Catalyst", critelli("OM2026Weeklies3_PrismaticCatalyst"),
     ProbeModule => "Probe Module", critelli("OM2023_W5_ProbeModule"),
+    ProfanedMoonshine => "Profaned Moonshine", critelli("DarkBricksPuzzleGauntlet-9472"),
     ProofOfCompleteness => "Proof of Completeness", official(Journal(99, 4, &["Servin, H."]), "P069"),
     ProspectorsSolvent => "Prospector's Solvent", official(Journal(108, 2, &["Rebbick, S."]), "P261"),
     PurifiedGold => "Purified Gold", official(Campaign(4), "P036"),
