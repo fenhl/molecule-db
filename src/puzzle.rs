@@ -1502,7 +1502,7 @@ puzzles! {
     MistOfGlaciation => "Mist of Glaciation", official(Journal(108, 6, &["Mann, M."]), "P283"),
     MistOfHallucination => "Mist of Hallucination", official(Campaign(5), "P038"),
     MistOfIncapacitation => "Mist of Incapacitation", official(Campaign(2), "P018"),
-    MistsOfProjection => "Mists of Projection", critelli("DarkBricksPuzzleGauntlet-8774"),
+    MistsOfProjection => "Mists Of Projection", critelli("DarkBricksPuzzleGauntlet-8774"),
     MixedUseLubricant => "Mixed-Use Lubricant", official(Drm(1), "P205"),
     MoonlightCatalyst => "Moonlight Catalyst", critelli("OM2025Weeklies11_MoonlightCatalyst"),
     MooringCable => "Mooring Cable", official(Journal(108, 1, &["Pugano, P."]), "P255"),
