@@ -4,6 +4,7 @@ html {
     scrollbar-color: light-dark(black #bbbbcc, white #333344);
     color-scheme: light dark;
 }
+
 body {
     background: light-dark(#bbbbcc, #333344);
     margin: 20px;
@@ -13,20 +14,25 @@ body {
     overflow: auto;
     text-align: center;
 }
+
 nav {
     padding: 8px;
 }
+
 a {
     color: inherit;
     text-decoration: underline;
 }
+
 a:hover,
 .favicon {
     text-decoration: none;
 }
+
 .favicon {
     margin-inline-end: 4px;
 }
+
 .favicon,
 img.favicon,
 .favicon img {
@@ -34,16 +40,19 @@ img.favicon,
     height: 16px;
     vertical-align: center;
 }
+
 .emphasized-section {
     background-color: light-dark(#ccd, #223);
     margin: 20px -20px;
     padding: 20px;
     border-radius: 8px;
 }
+
 #canvas-wrapper {
     position: relative;
     margin: 0 auto;
 }
+
 canvas {
     display: block;
     border-radius: 8px;
@@ -53,90 +62,109 @@ canvas {
     -ms-user-select: none;
     user-select: none;
 }
+
 .molecule-canvas {
     background-color: light-dark(#ccd, #223);
 }
+
 .canvas-button {
     position: absolute;
 }
+
 .button {
     background-color: light-dark(#ccd, #445);
     text-decoration: none;
     padding: 8px;
     border-inline-start: 1px solid light-dark(#aab, #223);
 }
+
 .button:nth-child(1) {
     border-start-start-radius: 8px;
     border-end-start-radius: 8px;
     border-inline-start: none;
 }
+
 .button:nth-last-child(1) {
     border-start-end-radius: 8px;
     border-end-end-radius: 8px;
 }
+
 .canvas-button > a {
     background-color: light-dark(#c4c4d5, #2a2a3b);
     text-decoration: none;
     border-radius: 8px;
     padding: 8px;
 }
+
 .button:hover,
 .button.selected {
     background-color: light-dark(#aab, #223);
 }
+
 .canvas-button > a:hover {
     background-color: light-dark(#d0d0e0, #282838);
 }
+
 .canvas-button#clear {
     top: 25px;
     right: 25px;
 }
+
 .canvas-button#radius {
     bottom: 25px;
     left: 289px;
 }
+
 .canvas-button#permalink {
     bottom: 25px;
     right: 25px;
 }
+
 p#error {
     font-weight: bold;
 }
+
 h3 {
     color: light-dark(#111, #eee);
     font-size: 16px;
     margin: 8px;
     text-align: center;
 }
+
 main,
 .row {
     display: inline-flex;
     flex-wrap: wrap;
 }
+
 main > div,
 .row > div {
     margin: 0 10px;
 }
+
 ul {
     list-style: none;
     padding-inline-start: 0;
 }
+
 .inline-list li {
-  display: inline;
+    display: inline;
 }
 
 .inline-list li a {
-  white-space: nowrap;
+    white-space: nowrap;
 }
 
 .inline-list li::after {
-  content: " ";
-  word-spacing: 1em;
-  background-image: radial-gradient(circle at 50% 55%, currentcolor 0, currentcolor 10%, transparent 15%, transparent 100%);
+    content: " ";
+    word-spacing: 1em;
+    background-image: radial-gradient(circle at 50% 55%, currentcolor 0, currentcolor 10%, transparent 15%, transparent 100%);
 }
+
 .muted {
     color: light-dark(#445, #bbbbc2);
 }
+
 .redlink {
     color: #e33;
 }
