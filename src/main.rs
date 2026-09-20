@@ -87,7 +87,10 @@ use {
     },
     xdg::BaseDirectories,
     crate::{
-        puzzle::Puzzle,
+        puzzle::{
+            Puzzle,
+            PuzzleSortKey,
+        },
         proto::FormMolecule,
         unparse::Unparse,
         util::{
@@ -440,7 +443,7 @@ impl Tab {
         match self {
             Self::MoleculeInput => uri!(index(_, _)),
             Self::MoleculeList => uri!(molecules_list),
-            Self::Puzzles => uri!(puzzle::index()),
+            Self::Puzzles => uri!(puzzle::index(_)),
         }
     }
 

@@ -121,6 +121,19 @@ ul {
     list-style: none;
     padding-inline-start: 0;
 }
+.inline-list li {
+  display: inline;
+}
+
+.inline-list li a {
+  white-space: nowrap;
+}
+
+.inline-list li::after {
+  content: " ";
+  word-spacing: 1em;
+  background-image: radial-gradient(circle at 50% 55%, currentcolor 0, currentcolor 10%, transparent 15%, transparent 100%);
+}
 .muted {
     color: light-dark(#445, #bbbbc2);
 }

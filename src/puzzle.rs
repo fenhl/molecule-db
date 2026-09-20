@@ -3,6 +3,7 @@
 use {
     std::{
         borrow::Cow,
+        cmp::Reverse,
         collections::{
             HashSet,
             hash_map::{
@@ -38,6 +39,8 @@ use {
         rng,
     },
     rocket::{
+        FromFormField,
+        UriDisplayQuery,
         State,
         form,
         http::{
@@ -135,6 +138,7 @@ impl ToHtml for OfficialCollection {
 pub(crate) enum Source {
     Computation {
         url: &'static str,
+        publish_date: NaiveDate,
         num_permutations: u32,
         permutations: Box<dyn Iterator<Item = [Vec<Molecule>; 2]> + Send>,
         js_get_permutation: Cow<'static, str>,
@@ -142,9 +146,11 @@ pub(crate) enum Source {
     },
     Critelli {
         url_part: &'static str,
+        publish_date: NaiveDate,
     },
     CritelliComputation {
         url_part: &'static str,
+        publish_date: NaiveDate,
         num_permutations: u32,
         permutations: Box<dyn Iterator<Item = [Vec<Molecule>; 2]> + Send>,
         js_get_permutation: Cow<'static, str>,
@@ -159,12 +165,14 @@ pub(crate) enum Source {
     },
     Other {
         url: &'static str,
+        publish_date: NaiveDate,
         metrics: Cow<'static, [(Restriction, Metric)]>,
     },
     Tutorial,
     Zlbb {
         zlbb_id: &'static str,
         url: &'static str,
+        publish_date: NaiveDate,
         metrics: Cow<'static, [(Restriction, Metric)]>,
     },
 }
@@ -194,22 +202,27 @@ impl Source {
     }
 }
 
-fn computation<I: IntoIterator<Item = [Vec<Molecule>; 2]>>(url: &'static str, num_permutations: u32, permutations: I, js_get_permutation: impl Into<Cow<'static, str>>, metrics: &'static [(Restriction, ComputationMetric)]) -> Source
+fn computation<I: IntoIterator<Item = [Vec<Molecule>; 2]>>(url: &'static str, year: i32, month: u32, day: u32, num_permutations: u32, permutations: I, js_get_permutation: impl Into<Cow<'static, str>>, metrics: &'static [(Restriction, ComputationMetric)]) -> Source
 where I::IntoIter: Send + 'static {
     Source::Computation {
+        publish_date: NaiveDate::from_ymd_opt(year, month, day).expect("wrong publish date"),
         permutations: Box::new(permutations.into_iter()),
         js_get_permutation: js_get_permutation.into(),
         url, num_permutations, metrics,
     }
 }
 
-fn critelli(url_part: &'static str) -> Source {
-    Source::Critelli { url_part }
+fn critelli(url_part: &'static str, year: i32, month: u32, day: u32) -> Source {
+    Source::Critelli {
+        publish_date: NaiveDate::from_ymd_opt(year, month, day).expect("wrong publish date"),
+        url_part,
+    }
 }
 
-fn critelli_computation<I: IntoIterator<Item = [Vec<Molecule>; 2]>>(url_part: &'static str, num_permutations: u32, permutations: I, js_get_permutation: impl Into<Cow<'static, str>>, metrics: &'static [(Restriction, ComputationMetric)]) -> Source
+fn critelli_computation<I: IntoIterator<Item = [Vec<Molecule>; 2]>>(url_part: &'static str, year: i32, month: u32, day: u32, num_permutations: u32, permutations: I, js_get_permutation: impl Into<Cow<'static, str>>, metrics: &'static [(Restriction, ComputationMetric)]) -> Source
 where I::IntoIter: Send + 'static {
     Source::CritelliComputation {
+        publish_date: NaiveDate::from_ymd_opt(year, month, day).expect("wrong publish date"),
         permutations: Box::new(permutations.into_iter()),
         js_get_permutation: js_get_permutation.into(),
         url_part, num_permutations, metrics,
@@ -225,16 +238,24 @@ fn official_non_lb(collection: OfficialCollection) -> Source {
     Source::OfficialNonLb { collection }
 }
 
-fn other(url: &'static str, metrics: impl Into<Cow<'static, [(Restriction, Metric)]>>) -> Source {
-    Source::Other { url, metrics: metrics.into() }
+fn other(url: &'static str, year: i32, month: u32, day: u32, metrics: impl Into<Cow<'static, [(Restriction, Metric)]>>) -> Source {
+    Source::Other {
+        publish_date: NaiveDate::from_ymd_opt(year, month, day).expect("wrong publish date"),
+        metrics: metrics.into(),
+        url,
+    }
 }
 
 fn tutorial() -> Source {
     Source::Tutorial
 }
 
-fn zlbb(zlbb_id: &'static str, url: &'static str, metrics: impl Into<Cow<'static, [(Restriction, Metric)]>>) -> Source {
-    Source::Zlbb { zlbb_id, url, metrics: metrics.into() }
+fn zlbb(zlbb_id: &'static str, url: &'static str, year: i32, month: u32, day: u32, metrics: impl Into<Cow<'static, [(Restriction, Metric)]>>) -> Source {
+    Source::Zlbb {
+        publish_date: NaiveDate::from_ymd_opt(year, month, day).expect("wrong publish date"),
+        metrics: metrics.into(),
+        zlbb_id, url,
+    }
 }
 
 macro_rules! puzzles {
@@ -347,6 +368,60 @@ impl Puzzle {
             },
         })
     }
+
+    fn publish_date(&self) -> NaiveDate {
+        match self.source() {
+            | Source::Computation { publish_date, .. }
+            | Source::Critelli { publish_date, .. }
+            | Source::CritelliComputation { publish_date, .. }
+            | Source::Other { publish_date, .. }
+            | Source::Zlbb { publish_date, .. }
+                => publish_date,
+            | Source::Tutorial
+                => NaiveDate::from_ymd_opt(2017, 10, 19).expect("wrong publish date"),
+            | Source::Official { collection, .. }
+            | Source::OfficialNonLb { collection, .. }
+                => {
+                    let (y, m, d) = match collection {
+                        Prologue | Campaign(_) => (2017, 10, 19),
+                        Appendix => (2017, 11, 22),
+                        Drm(_) => (2026, 3, 17),
+                        Journal(volume, issue, _) => match volume {
+                            99 => match issue {
+                                1 => (2017, 10, 19),
+                                2 => (2017, 10, 26),
+                                3 => (2017, 11, 2),
+                                4 => (2017, 11, 8),
+                                5 => (2017, 12, 15),
+                                6 => (2017, 12, 22),
+                                7 => (2018, 3, 5),
+                                8 => (2018, 3, 13),
+                                9 => (2018, 3, 28),
+                                10..=12 => (2026, 3, 17),
+                                _ => unimplemented!(),
+                            },
+                            108 => match issue {
+                                1 => (2026, 3, 31),
+                                2 => (2026, 4, 7),
+                                3 => (2026, 4, 14),
+                                4 => (2026, 4, 21),
+                                5 => (2026, 4, 28),
+                                6 => (2026, 5, 6),
+                                7 => (2026, 5, 12),
+                                8 => (2026, 5, 19),
+                                9 => (2026, 5, 26),
+                                10 => (2026, 6, 2),
+                                11 => (2026, 6, 10),
+                                12 => (2026, 6, 16),
+                                _ => unimplemented!(),
+                            },
+                            _ => unimplemented!(),
+                        },
+                    };
+                    NaiveDate::from_ymd_opt(y, m, d).expect("wrong publish date")
+                }
+        }
+    }
 }
 
 impl fmt::Display for Puzzle {
@@ -373,13 +448,62 @@ impl uri::fmt::UriDisplay<uri::fmt::Path> for Puzzle {
 
 impl_from_uri_param_identity!([uri::fmt::Path] Puzzle);
 
-#[rocket::get("/puzzle")]
-pub(crate) async fn index(config: &State<Config>, http_client: &State<reqwest::Client>, if_none_match: IfNoneMatch<'_>) -> StaticPageResponse {
+#[derive(Default, Clone, Copy, PartialEq, Eq, Sequence, FromFormField, UriDisplayQuery)]
+pub(crate) enum PuzzleSortKey {
+    #[default]
+    Name,
+    PublishDate,
+}
+
+impl PuzzleSortKey {
+    fn display_name(&self) -> &'static str {
+        match self {
+            Self::Name => "Name",
+            Self::PublishDate => "Date Published",
+        }
+    }
+}
+
+#[rocket::get("/puzzle?<sort>")]
+pub(crate) async fn index(config: &State<Config>, http_client: &State<reqwest::Client>, if_none_match: IfNoneMatch<'_>, sort: Option<PuzzleSortKey>) -> StaticPageResponse {
+    let sort = sort.unwrap_or_default();
+    let puzzles = match sort {
+        PuzzleSortKey::Name => Box::new(
+            all::<Puzzle>().into_group_map_by(|puzzle| puzzle.as_str().chars().next().expect("empty puzzle name"))
+                .into_iter()
+                .sorted_unstable_by_key(|(first_char, _)| *first_char)
+                .map(|(first_char, puzzles)| (first_char.to_string(), puzzles))
+        ) as Box<dyn Iterator<Item = (String, Vec<Puzzle>)>>,
+        PuzzleSortKey::PublishDate => Box::new(
+            all::<Puzzle>().into_group_map_by(|puzzle| puzzle.publish_date().year())
+                .into_iter()
+                .sorted_unstable_by_key(|(year, _)| Reverse(*year))
+                .map(|(year, mut puzzles)| {
+                    puzzles.sort_by_key(|puzzle| Reverse(puzzle.publish_date()));
+                    (year.to_string(), puzzles)
+                })
+        ),
+    };
     static_page(config, http_client, if_none_match, Tab::Puzzles, false, "Puzzles — Opus Magnum Molecule Database", html! {
-        ul {
-            @for puzzle in all::<Puzzle>() {
-                li {
-                    a(href = uri!(get(puzzle))) : puzzle;
+        p {
+            : "Sort by: ";
+            span(class = "button-row") {
+                @for iter_sort in all::<PuzzleSortKey>() {
+                    @if iter_sort == sort {
+                        a(class = "button selected") : iter_sort.display_name();
+                    } else {
+                        a(class = "button", href = uri!(index((iter_sort != PuzzleSortKey::default()).then_some(iter_sort)))) : iter_sort.display_name();
+                    }
+                }
+            }
+        }
+        @for (heading, puzzles) in puzzles {
+            h2 : heading;
+            ul(class = "inline-list") {
+                @for puzzle in puzzles {
+                    li {
+                        a(href = uri!(get(puzzle))) : puzzle;
+                    }
                 }
             }
         }
@@ -919,52 +1043,53 @@ fn js_get_permutation_serverside(permutations: Vec<[Vec<Molecule>; 2]>) -> Strin
 }
 
 puzzles! {
-    AWelcomeToHouseColvan => "A Welcome to House Colvan", zlbb("w2450560971", "https://drive.google.com/drive/folders/1Lk1kj1YERh0yWvgIK89dpd_L7TzLhhTo", &[]),
+    AWelcomeToHouseColvan => "A Welcome to House Colvan", zlbb("w2450560971", "https://drive.google.com/drive/folders/1Lk1kj1YERh0yWvgIK89dpd_L7TzLhhTo", 2020, 12, 28, &[]),
     AblativeCrystal => "Ablative Crystal", official(Journal(99, 3, &["Sheu, C."]), "P068"),
     AbrasiveParticles => "Abrasive Particles", official(Appendix, "P079"),
-    ActivePolymerase => "Active Polymerase", zlbb("w2501728219", "https://reddit.com/r/opus_magnum/comments/fe8l4r/week_6_active_polymerase/", &[
+    ActivePolymerase => "Active Polymerase", zlbb("w2501728219", "https://reddit.com/r/opus_magnum/comments/fe8l4r/week_6_active_polymerase/", 2020, 3, 6, &[
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cost, Metric::AreaV, Metric::Cycles]))),
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Product(&Metric::Cycles, &Metric::Parts(PartType::Bonding)), Metric::Cost]))),
     ]),
     AetherDetector => "Aether Detector", official(Appendix, "P077"),
-    AetherReactor => "Aether Reactor", critelli("Week_5_AetherReactor"),
+    AetherReactor => "Aether Reactor", critelli("Week_5_AetherReactor", 2022, 2, 5),
     AirshipFuel => "Airship Fuel", official(Campaign(1), "P008"),
     AlchemicalJewel => "Alchemical Jewel", official(Campaign(4), "P035"),
     AlchemicalSlag => "Alchemical Slag", official(Journal(99, 7, &["Price, A."]), "P099"),
     AlcoholSeparation => "Alcohol Separation", official(Campaign(3), "P024"),
-    AmalgamatedGoldRing => "Amalgamated Gold Ring", zlbb("w2501727808", "https://reddit.com/r/opus_magnum/comments/ewj8ml/tournament_week_2_amalgamated_gold_ring/", &[
+    AmalgamatedGoldRing => "Amalgamated Gold Ring", zlbb("w2501727808", "https://reddit.com/r/opus_magnum/comments/ewj8ml/tournament_week_2_amalgamated_gold_ring/", 2020, 1, 31, &[
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::AreaV, Metric::Cycles]))),
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Rate, Metric::Cost]))),
     ]),
-    AmeliasCatalyst => "Amelia's Catalyst", critelli("e9d7e303b465bbcba16fc72b0db96bc1"),
+    AmeliasCatalyst => "Amelia's Catalyst", critelli("e9d7e303b465bbcba16fc72b0db96bc1", 2026, 4, 10),
     AnimismusBuffer => "Animismus Buffer", official(Journal(99, 8, &["Price, A."]), "P104"),
-    AqueousDagger => "Aqueous Dagger", critelli("OM2026Weeklies6_AqueousDagger"),
+    AqueousDagger => "Aqueous Dagger", critelli("OM2026Weeklies6_AqueousDagger", 2026, 8, 7),
     ArmorFilament => "Armor Filament", official(Campaign(2), "P020"),
     ArmorPolish => "Armor Polish", official(Drm(2), "P213"),
-    ArqueritePromotion => "Arquerite Promotion", other("https://discord.com/channels/278707932089155584/296373951800541186/857072161097515049", &[
+    ArqueritePromotion => "Arquerite Promotion", other("https://discord.com/channels/278707932089155584/296373951800541186/857072161097515049", 2021, 6, 23, &[
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Rate, Metric::Cost, Metric::AreaV]))), // https://discord.com/channels/278707932089155584/296373951800541186/858143895824629792
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cost, Metric::Cycles, Metric::AreaV]))),
     ]),
-    ArtificialOre => "Artificial Ore", zlbb("w2591419339", "https://discord.com/channels/278707932089155584/296373951800541186/879900850661769278", &[
+    ArtificialOre => "Artificial Ore", zlbb("w2591419339", "https://discord.com/channels/278707932089155584/296373951800541186/879900850661769278", 2021, 8, 25, &[
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cost, Metric::Instructions, Metric::Cycles]))),
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::VintageInstructions, Metric::Cycles, Metric::Cost]))),
     ]),
-    Asbestos => "Asbestos", critelli("OM2025Weeklies6_Asbestos"),
+    Asbestos => "Asbestos", critelli("OM2025Weeklies6_Asbestos", 2025, 7, 26),
     AssassinsFilament => "Assassin's Filament", official(Journal(99, 7, &["Adam, V."]), "P097"),
     BalancedGold => "Balanced Gold", official(Journal(108, 6, &["Påhlson, M."]), "P282"),
     BalingFiber => "Baling Fiber", official(Journal(108, 7, &["Warden, I."]), "P286"),
     BandageThread => "Bandage Thread", official(Journal(99, 10, &["Woodstalker, H."]), "P248"),
     BeautySalve => "Beauty Salve", official(Journal(99, 10, &["Rakl, D."]), "P246"),
-    BerlosDualism => "Berlo's Dualism", critelli("b2567dd6f278003b0048996f5de5b64f"),
-    BicrystalTransceiver => "Bicrystal Transceiver", critelli("OM2023_W6_BicrystalTransceiver"),
-    BiosteelFilament => "Biosteel Filament", critelli("OM2023_W4_BiosteelFilament"),
-    BlackPowder => "Black Powder", critelli("OM2023Weeklies_BlackPowder"),
+    BerlosDualism => "Berlo's Dualism", critelli("b2567dd6f278003b0048996f5de5b64f", 2023, 10, 21),
+    BicrystalTransceiver => "Bicrystal Transceiver", critelli("OM2023_W6_BicrystalTransceiver", 2023, 2, 24),
+    BiosteelFilament => "Biosteel Filament", critelli("OM2023_W4_BiosteelFilament", 2023, 2, 3),
+    BlackPowder => "Black Powder", critelli("OM2023Weeklies_BlackPowder", 2023, 7, 8),
     BlastCordage => "Blast Cordage", official(Journal(108, 9, &["Darex, B. R. K."]), "P299"),
     BloodStanchingPowder => "Blood-Stanching Powder", official(Journal(99, 5, &["Quinn, T."]), "P087"),
-    BlueVitriol => "Blue Vitriol (2024 tournament)", critelli("bb94e99e5b9f4d14791f50e953e6f2bb"),
+    BlueVitriol => "Blue Vitriol (2024 tournament)", critelli("bb94e99e5b9f4d14791f50e953e6f2bb", 2024, 1, 17),
     BlueVitriolJournal => "Blue Vitriol (journal)", official(Journal(99, 11, &["Critelli, Z."]), "P241"),
     Boozesort => "Boozesort", critelli_computation(
         "OM2025Weeklies8_Boozesort",
+        2025, 8, 9,
         81,
         {
             const BOOZE: [Atom; 3] = [Atom::Fire, Atom::Salt, Atom::Water];
@@ -1000,82 +1125,83 @@ puzzles! {
             (Restriction::DefaultPreDrm /* output conditionals are explicitly allowed */, ComputationMetric::Max(Metric::Sum(&[Metric::Cost, Metric::Product(&Metric::Cycles, &Metric::Const(5)), Metric::AreaV]))),
         ],
     ),
-    BrazingCathode => "Brazing Cathode", critelli("OM2022Weeklies_BrazingCathode"),
+    BrazingCathode => "Brazing Cathode", critelli("OM2022Weeklies_BrazingCathode", 2022, 8, 20),
     BrazingSilver => "Brazing Silver", official(Journal(108, 12, &["Biggie, B."]), "P310"),
-    BreathableFluid => "Breathable Fluid", critelli("OM2024Weeklies_BreathableFluid"),
+    BreathableFluid => "Breathable Fluid", critelli("OM2024Weeklies_BreathableFluid", 2024, 7, 27),
     BrilliantPigment => "Brilliant Pigment", official(Journal(108, 12, &["Ames, F. L."]), "P311"),
-    BulkTransmutation => "Bulk Transmutation", critelli("OM2025week6_Bulk_Transmutation"),
+    BulkTransmutation => "Bulk Transmutation", critelli("OM2025week6_Bulk_Transmutation", 2025, 2, 14),
     BuoyantCable => "Buoyant Cable", official(Journal(99, 2, &["Venator, M."]), "P062"),
-    BurningSpiritOfSaturn => "Burning Spirit of Saturn", critelli("d3f9ca519aacb2d782a5388098299acd"),
+    BurningSpiritOfSaturn => "Burning Spirit of Saturn", critelli("d3f9ca519aacb2d782a5388098299acd", 2025, 5, 2),
     CalligraphersInk => "Calligrapher's Ink", official(Journal(108, 5, &["Tracy, E."]), "P277"),
-    CalmBeforeTheStorm => "Calm Before the Storm", zlbb("w2450512434", "https://drive.google.com/drive/folders/1JVbrvF7dcTKmYN68eGlWhTryXy1TEnc8", &[
+    CalmBeforeTheStorm => "Calm Before the Storm", zlbb("w2450512434", "https://drive.google.com/drive/folders/1JVbrvF7dcTKmYN68eGlWhTryXy1TEnc8", 2021, 2, 12, &[
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Product(&Metric::Cycles, &Metric::Parts(PartType::Unbonding)), Metric::AreaV, Metric::Cost]))),
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::AreaV, Metric::Cost, Metric::Cycles]))),
     ]),
-    CancerMedicine => "Cancer Medicine", critelli("d40f1593c0731c9325dd5c5b9ed3db4b"),
+    CancerMedicine => "Cancer Medicine", critelli("d40f1593c0731c9325dd5c5b9ed3db4b", 2022, 5, 14),
     CanisterShot => "Canister Shot", official(Journal(108, 4, &["Fauss, A."]), "P270"),
     CelestialThread => "Celestial Thread", official(Journal(99, 8, &["Day, A."]), "P101"),
-    ChildrensToys => "Children's Toys", critelli("f308e34f12f681c32580ee82d0c96c72"),
-    ChromaticAberration => "Chromatic Aberration", critelli("26a4f980a1b475197735802f9cb75836"),
+    ChildrensToys => "Children's Toys", critelli("f308e34f12f681c32580ee82d0c96c72", 2024, 12, 22),
+    ChromaticAberration => "Chromatic Aberration", critelli("26a4f980a1b475197735802f9cb75836", 2023, 11, 11),
     ClimbingRopeFiber => "Climbing Rope Fiber", official(Campaign(3), "P027"),
-    Clusterfgold => "Clusterfgold", critelli("7ce689ab3de9678bfb297994d79f17e1"),
-    ColvanBlue => "Colvan Blue", other("https://discord.com/channels/278707932089155584/296373951800541186/851990719530532864", &[
+    Clusterfgold => "Clusterfgold", critelli("7ce689ab3de9678bfb297994d79f17e1", 2026, 3, 20),
+    ColvanBlue => "Colvan Blue", other("https://discord.com/channels/278707932089155584/296373951800541186/851990719530532864", 2021, 6, 9, &[
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cycles, Metric::AreaV, Metric::Cost]))),
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::AreaV, Metric::Cycles, Metric::Cost]))),
     ]),
     CompoundAnaesthetic => "Compound Anaesthetic", official(Journal(99, 11, &["Azur, I."]), "P244"),
-    CompressedSoil => "Compressed Soil", other("https://discord.com/channels/278707932089155584/916727904942047292", &[
+    CompressedSoil => "Compressed Soil", other("https://discord.com/channels/278707932089155584/916727904942047292", 2021, 12, 4, &[
         (Restriction::DefaultPreDrm, Metric::SpeedsolveMins),
         (Restriction::DefaultPreDrm, Metric::Sum(&[Metric::Cost, Metric::Cycles, Metric::AreaV, Metric::Instructions])),
     ]),
     ConductiveEnamel => "Conductive Enamel", official(Journal(99, 6, &["Henderson, I."]), "P093"),
-    ConnectTheDots => "Connect the Dots", zlbb("w3101135731", "https://reddit.com/r/opus_magnum/comments/eohzw1/opus_magnum_tournament_2020/", &[]),
-    CoolEarrings => "Cool Earrings", critelli("OM2023_WO_CoolEarrings"),
-    CorporateWasteReduction => "Corporate Waste Reduction", critelli("88fed58ce6219be91a046e9a62a004c7"),
+    ConnectTheDots => "Connect the Dots", zlbb("w3101135731", "https://reddit.com/r/opus_magnum/comments/eohzw1/opus_magnum_tournament_2020/", 2020, 1, 14, &[]),
+    CoolEarrings => "Cool Earrings", critelli("OM2023_WO_CoolEarrings", 2023, 2, 18),
+    CorporateWasteReduction => "Corporate Waste Reduction", critelli("88fed58ce6219be91a046e9a62a004c7", 2026, 1, 2),
     CouragePotion => "Courage Potion", official(Campaign(2), "P021"),
-    CranberryGlass => "Cranberry Glass", other("https://discord.com/channels/278707932089155584/296373951800541186/864679286073720832", &[
+    CranberryGlass => "Cranberry Glass", other("https://discord.com/channels/278707932089155584/296373951800541186/864679286073720832", 2021, 7, 14, &[
         (Restriction::DefaultPreDrm, Metric::Sum(&[Metric::Cost, Metric::Cycles, Metric::AreaV, Metric::Instructions])),
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cycles, Metric::Instructions, Metric::Cost]))),
     ]),
-    CreativeAccounting => "Creative Accounting", zlbb("w1698785633", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/", tournament2019metrics(&[Metric::Cost, Metric::Cycles, Metric::AreaV])),
-    CrimsonCrystalBisection => "Crimson Crystal Bisection", other("https://discord.com/channels/278707932089155584/296373951800541186/867218205080158208", vec![
+    CreativeAccounting => "Creative Accounting", zlbb("w1698785633", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/", 2019, 1, 19, tournament2019metrics(&[Metric::Cost, Metric::Cycles, Metric::AreaV])),
+    CrimsonCrystalBisection => "Crimson Crystal Bisection", other("https://discord.com/channels/278707932089155584/296373951800541186/867218205080158208", 2021, 7, 21, vec![
         (Restriction::WithConduits(&Restriction::DefaultPreDrm, vec![Conduit { pos_a: HexIndex { q: -1, r: 0 }, pos_b: HexIndex { q: 1, r: 0 }, hexes: vec![HexIndex { q: 0, r: 0 }] }]), Metric::Ties(Cow::Borrowed(&[Metric::HeightV, Metric::Cycles, Metric::Cost]))),
         (Restriction::WithConduits(&Restriction::All(&[Restriction::DefaultPreDrm, Restriction::Trackless]), vec![Conduit { pos_a: HexIndex { q: -1, r: 0 }, pos_b: HexIndex { q: 1, r: 0 }, hexes: vec![HexIndex { q: 0, r: 0 }] }]), Metric::Ties(Cow::Borrowed(&[Metric::Instructions, Metric::AreaV, Metric::Cycles]))),
     ]),
-    CritellicSlag => "Critellic Slag", critelli("DarkBricksPuzzleGauntlet-4174"),
-    Critellium => "Critellium", critelli("e8f14a0982aaacbb3254457e77c23a0b"),
-    CrystalCompression => "Crystal Compression", other("https://discord.com/channels/278707932089155584/296373951800541186/862141779825655818", &[
+    CritellicSlag => "Critellic Slag", critelli("DarkBricksPuzzleGauntlet-4174", 2026, 9, 11),
+    Critellium => "Critellium", critelli("e8f14a0982aaacbb3254457e77c23a0b", 2024, 3, 13),
+    CrystalCompression => "Crystal Compression", other("https://discord.com/channels/278707932089155584/296373951800541186/862141779825655818", 2021, 7, 7, &[
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Latency, Metric::Cost, Metric::AreaV]))),
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::AreaV, Metric::Cycles, Metric::Cost]))),
     ]),
-    CrystallizedAir => "Crystallized Air", critelli("OM2025week5_Crystallized_Air"),
+    CrystallizedAir => "Crystallized Air", critelli("OM2025week5_Crystallized_Air", 2025, 2, 7),
     CultivationTonic => "Cultivation Tonic", official(Journal(99, 10, &["Nick, P. A."]), "P249"),
-    Cuprite => "Cuprite (2022 weeklies)", critelli("OM2022Weeklies_Cuprite"),
+    Cuprite => "Cuprite (2022 weeklies)", critelli("OM2022Weeklies_Cuprite", 2022, 7, 23),
     CupriteJournal => "Cuprite (journal)", official(Journal(99, 12, &["Critelli, Z."]), "P253"),
-    CuqueritePromotion => "Cuquerite Promotion", critelli("af91511ae10c69e531d347ad8656e594"),
+    CuqueritePromotion => "Cuquerite Promotion", critelli("af91511ae10c69e531d347ad8656e594", 2022, 6, 26),
     CuriousLipstick => "Curious Lipstick", official(Campaign(5), "P041"),
-    DarkMatterCandidate => "Dark Matter Candidate", critelli("OM2023Weeklies_DarkMatterCandidate"),
-    DeepFriedRocketPropellant => "Deep-Fried Rocket Propellant", critelli("OM2024Weeklies_DeepFriedRocketPropellant"),
-    DeepFriedUnstableCompound => "Deep-Fried Unstable Compound", critelli("OM2024Weeklies_BSides_DeepFriedUnstableCompound"),
-    DehydratedWater => "Dehydrated Water", critelli("OM2022Weeklies_DehydratedWater"),
-    DentalAmalgam => "Dental Amalgam (2024 tournament)", critelli("c3dda33075913461bebd7cd7c8759669"),
+    DarkMatterCandidate => "Dark Matter Candidate", critelli("OM2023Weeklies_DarkMatterCandidate", 2023, 8, 12),
+    DeepFriedRocketPropellant => "Deep-Fried Rocket Propellant", critelli("OM2024Weeklies_DeepFriedRocketPropellant", 2024, 7, 6),
+    DeepFriedUnstableCompound => "Deep-Fried Unstable Compound", critelli("OM2024Weeklies_BSides_DeepFriedUnstableCompound", 2024, 7, 7),
+    DehydratedWater => "Dehydrated Water", critelli("OM2022Weeklies_DehydratedWater", 2022, 9, 10),
+    DentalAmalgam => "Dental Amalgam (2024 tournament)", critelli("c3dda33075913461bebd7cd7c8759669", 2024, 2, 14),
     DentalAmalgamJournal => "Dental Amalgam (journal)", official(Journal(99, 12, &["Critelli, Z."]), "P252"),
-    DestabilizedNature => "Destabilized Nature", critelli("683142751f1988e34bb824ac9302ed20"),
-    DoYouRemember => "Do You Remember", zlbb("w1698787731", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/", tournament2019metrics(&[Metric::Div(&Metric::Cost, &Metric::Const(2)), Metric::Cycles, Metric::AreaV])),
-    DowsingRods => "Dowsing Rods", critelli("OM2026Weeklies2_DowsingRods"),
+    DestabilizedNature => "Destabilized Nature", critelli("683142751f1988e34bb824ac9302ed20", 2023, 10, 28),
+    DoYouRemember => "Do You Remember", zlbb("w1698787731", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/", 2019, 2, 16, tournament2019metrics(&[Metric::Div(&Metric::Cost, &Metric::Const(2)), Metric::Cycles, Metric::AreaV])),
+    DowsingRods => "Dowsing Rods", critelli("OM2026Weeklies2_DowsingRods", 2026, 7, 10),
     DurableStitching => "Durable Stitching", official(Journal(108, 9, &["Apia, B."]), "P296"),
-    DwarvenFireWine => "Dwarven Fire Wine", zlbb("w1698786588", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/", &[
+    DwarvenFireWine => "Dwarven Fire Wine", zlbb("w1698786588", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/", 2019, 2, 2, &[
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cycles, Metric::Cost]))),
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Instructions, Metric::Cycles]))),
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cost, Metric::Instructions]))),
         (Restriction::DefaultPreDrm, Metric::Sum(&[Metric::Cost, Metric::Div(&Metric::Cycles, &Metric::Const(2)), Metric::Instructions])),
     ]),
-    DyeHard => "Dye Hard", critelli("OM2023Weeklies_DyeHard"),
-    ElectrolysedLitharge => "Electrolysed Litharge", critelli("DarkBricksPuzzleGauntlet-7506"),
+    DyeHard => "Dye Hard", critelli("OM2023Weeklies_DyeHard", 2023, 6, 16),
+    ElectrolysedLitharge => "Electrolysed Litharge", critelli("DarkBricksPuzzleGauntlet-7506", 2026, 9, 11),
     Electrum => "Electrum", official(Journal(108, 10, &["Icai, J."]), "P303"),
     ElectrumSeparation => "Electrum Separation", official(Journal(99, 8, &["Rallus, U."]), "P103"),
     ElementalComparator => "Elemental Comparator", critelli_computation(
         "OM2023_W8w_ElementalComparator",
+        2023, 3, 10,
         16,
         CARDINALS.into_iter().array_combinations_with_reps().map(|[a, b]| [
             vec![Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => a], bonds: collect![] }, Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => b], bonds: collect![] }],
@@ -1093,34 +1219,35 @@ puzzles! {
         &[],
     ),
     ElementalCopper => "Elemental Copper", official(Drm(1), "P202"),
-    ElementalJewelSetting => "Elemental Jewel Setting", zlbb("w2450512809", "https://drive.google.com/drive/folders/1P7fsijiuJTI-1LKrpT7IMn7nj2V5PAvC", &[
+    ElementalJewelSetting => "Elemental Jewel Setting", zlbb("w2450512809", "https://drive.google.com/drive/folders/1P7fsijiuJTI-1LKrpT7IMn7nj2V5PAvC", 2021, 3, 12, &[
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::AreaV, Metric::Cycles, Metric::Cost]))),
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Sum(&[Metric::Cost, Metric::Cycles, Metric::AreaV]), Metric::Cost, Metric::Cycles]))),
     ]),
-    ElementalLifeStudy => "Elemental Life Study", other("https://discord.com/channels/278707932089155584/909244356584673301/909548321662730311", &[
+    ElementalLifeStudy => "Elemental Life Study", other("https://discord.com/channels/278707932089155584/909244356584673301/909548321662730311", 2021, 11, 14, &[
         (Restriction::DefaultPreDrm, Metric::SpeedsolveMins),
         (Restriction::DefaultPreDrm, Metric::Sum(&[Metric::Product(&Metric::SpeedsolveMins, &Metric::Const(2)), Metric::Cycles])),
     ]),
     EmbalmingFluid => "Embalming Fluid", official(Journal(99, 9, &["Day, A."]), "P108"),
-    EmergencyAntidote => "Emergency Antidote", zlbb("w2450512232", "https://drive.google.com/drive/folders/1SL0WExUVLu6_xsvZCA9z29PH6RuFBrBd", &[
+    EmergencyAntidote => "Emergency Antidote", zlbb("w2450512232", "https://drive.google.com/drive/folders/1SL0WExUVLu6_xsvZCA9z29PH6RuFBrBd", 2021, 2, 5, &[
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cycles, Metric::Cost]))),
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Instructions, Metric::Cycles, Metric::Cost]))),
     ]),
-    EndGame => "End Game", critelli("OM2023_W0_EndGame"),
+    EndGame => "End Game", critelli("OM2023_W0_EndGame", 2022, 12, 31),
     EndurancePotion => "Endurance Potion", official(Journal(108, 8, &["Wellman, G."]), "P293"),
-    EphemeralMatrix => "Ephemeral Matrix", critelli("5a5504a1f72574d23012a6458d1a29b1"),
+    EphemeralMatrix => "Ephemeral Matrix", critelli("5a5504a1f72574d23012a6458d1a29b1", 2022, 5, 29),
     EssenceOfCitrus => "Essence of Citrus", official(Journal(108, 1, &["Fontenelle, A."]), "P257"),
-    EvilOre => "Evil Ore", zlbb("w1698788220", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/", tournament2019metrics(&[Metric::Cycles, Metric::AreaV])),
+    EvilOre => "Evil Ore", zlbb("w1698788220", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/", 2019, 2, 23, tournament2019metrics(&[Metric::Cycles, Metric::AreaV])),
     ExMateria => "Ex Materia", official(Drm(3), "P217"),
     ExperimentalCatalyst => "Experimental Catalyst", official(Drm(3), "P220"),
     ExplorersSalve => "Explorer's Salve", official(Journal(99, 2, &["Laj, T."]), "P059"),
     ExplosiveAlloy => "Explosive Alloy", official(Journal(99, 12, &["Via Lactea, V."]), "P251"),
-    ExplosiveFingerTrap => "Explosive Finger Trap", other("https://discord.com/channels/278707932089155584/296373951800541186/874833948570689577", &[
+    ExplosiveFingerTrap => "Explosive Finger Trap", other("https://discord.com/channels/278707932089155584/296373951800541186/874833948570689577", 2021, 8, 11, &[
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::AreaV, Metric::Cycles, Metric::Cost]))),
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Rate, Metric::Cost]))),
     ]),
     ExplosiveLogicUnit => "Explosive Logic Unit", computation(
         "https://drive.google.com/drive/folders/1A_GkcZV1fxMt3vII6qGsD_wX2ULzG8Ca",
+        2021, 3, 19,
         65536, //TODO this is incorrect, inputs where the difference overflows are out of scope of the puzzle
         all().array_combinations_with_reps().map(|[a, b]| {
             fn bits(n: u8) -> Vec<Atom> {
@@ -1150,31 +1277,31 @@ puzzles! {
     ),
     ExplosivePhial => "Explosive Phial", official(Campaign(2), "P017"),
     ExplosiveVictrite => "Explosive Victrite", official(Journal(99, 8, &["Adam, V."]), "P100"),
-    ExtractionFromSapa => "Extraction from Sapa", critelli("65f67bd69c877c6b90352dea6c440aa1"),
-    EyedropsOfIrritation => "Eyedrops Of Irritation", critelli("OM2023Weeklies_EyedropsOfIrritation"),
+    ExtractionFromSapa => "Extraction from Sapa", critelli("65f67bd69c877c6b90352dea6c440aa1", 2025, 4, 26),
+    EyedropsOfIrritation => "Eyedrops Of Irritation", critelli("OM2023Weeklies_EyedropsOfIrritation", 2023, 7, 15),
     EyedropsOfRevelation => "Eyedrops of Revelation", official(Appendix, "P081"),
     FacePowder => "Face Powder", official(Campaign(1), "P009"),
-    FaeroFilament => "Faero Filament", critelli("OM2024Weeklies_FaeroFilament"),
-    FerrousWheel => "Ferrous Wheel", zlbb("w2565611826", "https://discord.com/channels/278707932089155584/296373951800541186/869756148788625459", &[
+    FaeroFilament => "Faero Filament", critelli("OM2024Weeklies_FaeroFilament", 2024, 8, 17),
+    FerrousWheel => "Ferrous Wheel", zlbb("w2565611826", "https://discord.com/channels/278707932089155584/296373951800541186/869756148788625459", 2021, 7, 28, &[
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cycles, Metric::Cost, Metric::AreaV]))),
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cost, Metric::AreaV, Metric::Cycles]))),
     ]),
-    FilmCrystal => "Film Crystal", critelli("Week_4_FilmCrystal"),
+    FilmCrystal => "Film Crystal", critelli("Week_4_FilmCrystal", 2022, 1, 29),
     FireworksPowder => "Fireworks Powder", official(Drm(2), "P211"),
-    FlakeSalt => "Flake Salt", critelli("Week_-1_FlakeSalt"),
+    FlakeSalt => "Flake Salt", critelli("Week_-1_FlakeSalt", 2021, 12, 12),
     FragrantPowders => "Fragrant Powders", official(Appendix, "P075"),
     FructifyingWater => "Fructifying Water", official(Journal(108, 7, &["Thinnes, Y."]), "P289"),
-    FuckISpilledMyMetalsEverywhereCanYouHelpMePickThemUp => "Fuck I Spilled My Metals Everywhere Can You Help Me Pick Them Up", critelli("OM2026Weeklies8_FISMMECYHMPTU"),
-    Fulmination => "Fulmination", critelli("Week_6_Fulmination"),
+    FuckISpilledMyMetalsEverywhereCanYouHelpMePickThemUp => "Fuck I Spilled My Metals Everywhere Can You Help Me Pick Them Up", critelli("OM2026Weeklies8_FISMMECYHMPTU", 2026, 8, 21),
+    Fulmination => "Fulmination", critelli("Week_6_Fulmination", 2022, 2, 12),
     GalenaSeparation => "Galena Separation", official(Drm(1), "P207"),
-    Galvanization => "Galvanization", critelli("58aea7d6d7ba1b4e8b73d2219de0a8cc"),
+    Galvanization => "Galvanization", critelli("58aea7d6d7ba1b4e8b73d2219de0a8cc", 2023, 11, 18),
     GeneralAnaesthetic => "General Anaesthetic", official(Journal(99, 5, &["Wu, B."]), "P086"),
     GildingWax => "Gilding Wax", official(Journal(108, 5, &["Mallard, J."]), "P279"),
     GlitraPaint => "Glitra Paint", official(Journal(108, 5, &["Fauss, A."]), "P275"),
-    GlorpsConstruct => "Glorp's Construct", critelli("b721b7ba8e14db667d5ea374eaca9a9e"),
+    GlorpsConstruct => "Glorp's Construct", critelli("b721b7ba8e14db667d5ea374eaca9a9e", 2026, 5, 29),
     GoldenThread => "Golden Thread", official(Campaign(4), "P037"),
-    GraphitePress => "Graphite Press", critelli("37da748e3433bff2d9c4e3c7537c2b08"),
-    GreenVitriol => "Green Vitriol (2021 weeklies)", zlbb("w2539581468", "https://discord.com/channels/278707932089155584/296373951800541186/859612178902286376", &[
+    GraphitePress => "Graphite Press", critelli("37da748e3433bff2d9c4e3c7537c2b08", 2026, 9, 11),
+    GreenVitriol => "Green Vitriol (2021 weeklies)", zlbb("w2539581468", "https://discord.com/channels/278707932089155584/296373951800541186/859612178902286376", 2021, 6, 30, &[
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cycles, Metric::Cost, Metric::AreaV]))),
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Sum(&[Metric::Cost, Metric::Cycles, Metric::AreaV]), Metric::Instructions]))),
     ]),
@@ -1185,6 +1312,7 @@ puzzles! {
     Gunmetal => "Gunmetal", official(Journal(108, 4, &["Joshua, Y."]), "P272"),
     HabitabilityDetector => "Habitability Detector", critelli_computation(
         "OM2023_W8_HabitabilityDetector",
+        2023, 3, 10,
         262144,
         CARDINALS.into_iter().array_combinations_with_reps().map(|[p1, p2, p3, s1, s2, s3, s4, s5, s6]| [
             vec![stick(&[p1, p2, p3]), stick(&[s1, s2, s3, s4, s5, s6])],
@@ -1218,44 +1346,45 @@ puzzles! {
     HairProduct => "Hair Product", official(Campaign(2), "P016"),
     HangoverCure => "Hangover Cure", official(Campaign(1), "P013"),
     HealthTonic => "Health Tonic", official(Campaign(1), "P014"),
-    HemisphereChange => "Hemisphere Change", critelli("af2bef37158400f2caf15403a1d3c687"),
+    HemisphereChange => "Hemisphere Change", critelli("af2bef37158400f2caf15403a1d3c687", 2023, 11, 4),
     HexstabilizedSalt => "Hexstabilized Salt", official(Journal(99, 6, &["Griswold, I."]), "P091b"),
-    HexstabilizedTeulingsMors => "Hexstabilized Teuling's Mors", critelli("OM2023Weeklies_HexstabilizedTeulingsMors"),
+    HexstabilizedTeulingsMors => "Hexstabilized Teuling's Mors", critelli("OM2023Weeklies_HexstabilizedTeulingsMors", 2023, 7, 22),
     HighExplosive => "High Explosive", official(Journal(108, 4, &["Nick, P. A."]), "P271"),
-    HighGlossFinish => "High Gloss Finish", zlbb("w2501728349", "https://reddit.com/r/opus_magnum/comments/fhui7x/week_7_high_gloss_finish/", &[
+    HighGlossFinish => "High Gloss Finish", zlbb("w2501728349", "https://reddit.com/r/opus_magnum/comments/fhui7x/week_7_high_gloss_finish/", 2020, 3, 13, &[
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cycles, Metric::Cost, Metric::AreaV]))),
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::If(&Restriction::Eq(Metric::MechCost, Metric::Const(50)), &Metric::Const(300), &Metric::Sum(&[Metric::Cost, Metric::Cycles, Metric::AreaV])), Metric::Cycles]))),
     ]),
-    HornSilver => "Horn Silver", zlbb("w2513871683", "https://discord.com/channels/278707932089155584/296373951800541186/849437821918904350", &[
+    HornSilver => "Horn Silver", zlbb("w2513871683", "https://discord.com/channels/278707932089155584/296373951800541186/849437821918904350", 2021, 6, 2, &[
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Sum(&[Metric::Cost, Metric::Cycles, Metric::AreaV]), Metric::Cycles, Metric::AreaV]))),
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Sum(&[Metric::Tracks, Metric::Instructions]), Metric::Cycles, Metric::Cost, Metric::AreaV]))),
     ]),
-    HotIce => "Hot Ice", critelli("OM2022Weeklies_HotIce"),
-    HydrophobicWater => "Hydrophobic Water", critelli("om2025week1_Hydrophobic_Water"),
-    HydroponicSolution => "Hydroponic Solution", critelli("OM2023_W3_HydroponicSolution"),
+    HotIce => "Hot Ice", critelli("OM2022Weeklies_HotIce", 2022, 9, 3),
+    HydrophobicWater => "Hydrophobic Water", critelli("om2025week1_Hydrophobic_Water", 2025, 1, 3),
+    HydroponicSolution => "Hydroponic Solution", critelli("OM2023_W3_HydroponicSolution", 2023, 1, 27),
     HyperVolatileGas => "Hyper-volatile Gas", official(Journal(99, 9, &["Fauss, A."]), "P106"),
-    IcelandicLavaSalt => "Icelandic Lava Salt", critelli("952a099fce7b49281d4b95f0f37dae8e"),
-    IgnitionCord => "Ignition Cord", critelli("OM2022Weeklies_IgnitionCord"),
-    ImmortalFilament => "Immortal Filament", critelli("483f5c168a293fbed5aaf12990be50cf"),
-    ImprovedExplosivePhial => "Improved Explosive Phial", zlbb("w2450508212", "https://drive.google.com/drive/folders/1aRi8dJIu7YPhikm-QXRboJybAr9ZlW0j", &[
+    IcelandicLavaSalt => "Icelandic Lava Salt", critelli("952a099fce7b49281d4b95f0f37dae8e", 2022, 9, 17),
+    IgnitionCord => "Ignition Cord", critelli("OM2022Weeklies_IgnitionCord", 2022, 7, 9),
+    ImmortalFilament => "Immortal Filament", critelli("483f5c168a293fbed5aaf12990be50cf", 2026, 4, 17),
+    ImprovedExplosivePhial => "Improved Explosive Phial", zlbb("w2450508212", "https://drive.google.com/drive/folders/1aRi8dJIu7YPhikm-QXRboJybAr9ZlW0j", 2021, 1, 15, &[
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::AreaV, Metric::Cost, Metric::Cycles]))),
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cost, Metric::Cycles, Metric::AreaV]))),
     ]),
-    InBerlosBasement => "In Berlo's Basement", critelli("66f74ef1aae21439a688b1cc54ca894c"),
-    InLocoDispono => "In Loco Dispono", critelli("5b464528478f002ba6866f690bd01f40"),
+    InBerlosBasement => "In Berlo's Basement", critelli("66f74ef1aae21439a688b1cc54ca894c", 2022, 4, 11),
+    InLocoDispono => "In Loco Dispono", critelli("5b464528478f002ba6866f690bd01f40", 2022, 7, 10),
     InductiveFoil => "Inductive Foil", official(Journal(108, 6, &["Aonum, C."]), "P280"),
-    InstantMirrorCoat => "Instant Mirror Coat", critelli("OM2024Weeklies_InstantMirrorCoat"),
-    IntumescentLead => "Intumescent Lead", critelli("fc37c3c4183d77bb17bf827ae66c53d7"),
+    InstantMirrorCoat => "Instant Mirror Coat", critelli("OM2024Weeklies_InstantMirrorCoat", 2024, 6, 29),
+    IntumescentLead => "Intumescent Lead", critelli("fc37c3c4183d77bb17bf827ae66c53d7", 2026, 5, 1),
     InvariantMetal => "Invariant Metal", official(Drm(3), "P215"),
     InvigoratingTonic => "Invigorating Tonic", official(Journal(108, 8, &["Silva, J."]), "P291"),
     InvisibleInk => "Invisible Ink", official(Campaign(4), "P032"),
-    IrritantGas => "Irritant Gas", other("https://discord.com/channels/278707932089155584/370367639073062922/904414425216344204", &[
+    IrritantGas => "Irritant Gas", other("https://discord.com/channels/278707932089155584/370367639073062922/904414425216344204", 2021, 10, 31, &[
         (Restriction::DefaultPreDrm, Metric::SpeedsolveMins),
     ]),
-    JewelBox => "Jewel Box", critelli("OM2025Weeklies1_JewelBox"),
+    JewelBox => "Jewel Box", critelli("OM2025Weeklies1_JewelBox", 2025, 6, 21),
     Lambent29 => "Lambent II/IX", official(Journal(99, 1, &["Van Berlo, C."]), "P058"),
     Lambent67 => "Lambent LXVII", critelli_computation(
         "0c61ded553925ac6b6d567386c9982b8",
+        2026, 1, 9,
         72,
         {
             // translated from https://lambentlxvii.pages.dev/
@@ -1296,9 +1425,9 @@ puzzles! {
     LamplightGas => "Lamplight Gas", official(Journal(99, 6, &["Klusseter, S."]), "P092"),
     LapidarySaw => "Lapidary Saw", official(Journal(108, 5, &["Ames, F. L."]), "P278"),
     LapisSolaris => "Lapis Solaris", official(Journal(108, 12, &["Fauss, A.", "Mallard, J."]), "P313"),
-    LatchHookFireworks => "Latch-Hook Fireworks", critelli("638f26965e21b260086e1919b264eab5"),
+    LatchHookFireworks => "Latch-Hook Fireworks", critelli("638f26965e21b260086e1919b264eab5", 2024, 2, 21),
     LeachingAgent => "Leaching Agent", official(Journal(108, 2, &["Gue, E."]), "P263"),
-    LeaveNoTrace => "Leave No Trace", critelli("Week_0_LeaveNoTrace"),
+    LeaveNoTrace => "Leave No Trace", critelli("Week_0_LeaveNoTrace", 2021, 12, 26),
     LeaveningAgent => "Leavening Agent", official(Journal(108, 7, &["Citrus, L."]), "P287"),
     LessonArms => "Lesson: Arms", tutorial(),
     LessonBonding => "Lesson: Bonding", tutorial(),
@@ -1309,13 +1438,14 @@ puzzles! {
     LessonTransmutation => "Lesson: Transmutation", tutorial(),
     LifeSensingPotion => "Life-Sensing Potion", official(Campaign(3), "P030b"),
     LighthouseMirror => "Lighthouse Mirror", official(Journal(108, 1, &["Servin, H."]), "P258"),
-    LiquidPerfumes => "Liquid Perfumes", critelli("OM2026Weeklies1_LiquidPerfumes"),
+    LiquidPerfumes => "Liquid Perfumes", critelli("OM2026Weeklies1_LiquidPerfumes", 2026, 7, 3),
     LithargeSeparation => "Litharge Separation", official(Campaign(4), "P031b"),
-    LocalAnaesthetic => "Local Anaesthetic", critelli("2414043fbe61ace7b2335186a998fcd8"),
+    LocalAnaesthetic => "Local Anaesthetic", critelli("2414043fbe61ace7b2335186a998fcd8", 2024, 1, 24),
     Lodestone => "Lodestone", official(Journal(108, 1, &["Critelli, Z."]), "P256"),
-    Logistics => "Logistics", critelli("d18b0ff75237478b9f7d27f799222e46"),
+    Logistics => "Logistics", critelli("d18b0ff75237478b9f7d27f799222e46", 2022, 5, 1),
     LookAndSay => "Look-And-Say", critelli_computation(
         "OM2024Weeklies_LookAndSay",
+        2024, 8, 3,
         46656,
         METALS.into_iter().array_combinations_with_reps().map(|input| {
             fn look_and_say(string: [Atom; 6]) -> Vec<Atom> {
@@ -1375,14 +1505,14 @@ puzzles! {
         ],
     ),
     LubricatingFilament => "Lubricating Filament", official(Journal(99, 3, &["Klusseter, S."]), "P065"),
-    LubricatingSolvents => "Lubricating Solvents", critelli("Week_3_LubricatingSolvents"),
+    LubricatingSolvents => "Lubricating Solvents", critelli("Week_3_LubricatingSolvents", 2022, 1, 22),
     LuminousVapor => "Luminous Vapor", official(Journal(99, 10, &["Nick, P. A."]), "P247"),
     Lustre => "Lustre", official(Journal(99, 6, &["Servin, H."]), "P090"),
-    LustrousSyrup => "Lustrous Syrup", critelli("OM2022Weeklies_LustrousSyrup"),
-    MagisteryOfSaturn => "Magistery of Saturn", critelli("9679227965273efecaca286dadb4dabf"),
+    LustrousSyrup => "Lustrous Syrup", critelli("OM2022Weeklies_LustrousSyrup", 2022, 8, 6),
+    MagisteryOfSaturn => "Magistery of Saturn", critelli("9679227965273efecaca286dadb4dabf", 2025, 5, 2),
     Marlstone => "Marlstone", official(Journal(108, 7, &["Il Sichay, V."]), "P288"),
-    MartialRegulus => "Martial Regulus", critelli("OM2022Weeklies_MartialRegulus"),
-    MaterialSalvage => "Material Salvage", critelli("om2025break_Material_Salvage"),
+    MartialRegulus => "Martial Regulus", critelli("OM2022Weeklies_MartialRegulus", 2022, 6, 18),
+    MaterialSalvage => "Material Salvage", critelli("om2025break_Material_Salvage", 2025, 2, 2),
     MemoryLane => "Memory Lane", {
         let encoding = [Atom::Salt, Atom::Fire].into_iter().array_combinations_with_reps::<5>()
             .zip_eq(METALS.into_iter().array_combinations_with_reps::<2>().collect_vec().partial_shuffle(&mut rng(), 32).0)
@@ -1393,6 +1523,7 @@ puzzles! {
             .collect_vec();
         critelli_computation(
             "OM2025week8_Memory_Lane",
+            2025, 2, 28,
             32,
             encoding.clone(),
             js_get_permutation_serverside(encoding),
@@ -1403,6 +1534,7 @@ puzzles! {
     },
     MetalCalculus => "Metal Calculus", computation(
         "https://reddit.com/r/opus_magnum/comments/flp70t/the_final_week_of_the_tournament_metal_calculus/",
+        2020, 3, 20,
         10077696,
         METALS.into_iter().array_combinations_with_reps().map(|input| {
             fn derivative(string: [Atom; 9]) -> Vec<Atom> {
@@ -1485,7 +1617,7 @@ puzzles! {
     MetallicTincture => "Metallic Tincture", official(Drm(1), "P206"),
     MildSteel => "Mild Steel", official(Journal(108, 11, &["Kagami, T."]), "P308"),
     MineralOil => "Mineral Oil", official(Journal(108, 11, &["Kia, J."]), "P307"),
-    MiraculousAutosalt => "Miraculous Autosalt", zlbb("w1698787102", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/", &[
+    MiraculousAutosalt => "Miraculous Autosalt", zlbb("w1698787102", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/", 2019, 2, 9, &[
         (Restriction::WithMiraculousAutosalt(&Restriction::DefaultPreDrm), Metric::Ties(Cow::Borrowed(&[Metric::Cycles, Metric::Cost]))),
         (Restriction::WithMiraculousAutosalt(&Restriction::DefaultPreDrm), Metric::Ties(Cow::Borrowed(&[Metric::AreaV, Metric::Cycles]))),
         (Restriction::WithMiraculousAutosalt(&Restriction::DefaultPreDrm), Metric::Ties(Cow::Borrowed(&[Metric::Cost, Metric::AreaV]))),
@@ -1495,37 +1627,37 @@ puzzles! {
     MirrorPolish => "Mirror Polish", official(Journal(108, 3, &["Xenas, M."]), "P269"),
     MirroringAmalgam => "Mirroring Amalgam", official(Journal(108, 9, &["Il Sichay, V."]), "P298"),
     MistOfClarification => "Mist of Clarification", official(Journal(108, 10, &["Wallace, A."]), "P300"),
-    MistOfDousing => "Mist of Dousing", zlbb("w2450512021", "https://drive.google.com/drive/folders/1JX9JEdzXfFgn1-z4Yno_oMjSHHg8eGxE", &[
+    MistOfDousing => "Mist of Dousing", zlbb("w2450512021", "https://drive.google.com/drive/folders/1JX9JEdzXfFgn1-z4Yno_oMjSHHg8eGxE", 2021, 1, 29, &[
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cycles, Metric::Cost, Metric::AreaV]))),
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cost, Metric::Cycles, Metric::AreaV]))),
     ]),
     MistOfGlaciation => "Mist of Glaciation", official(Journal(108, 6, &["Mann, M."]), "P283"),
     MistOfHallucination => "Mist of Hallucination", official(Campaign(5), "P038"),
     MistOfIncapacitation => "Mist of Incapacitation", official(Campaign(2), "P018"),
-    MistsOfProjection => "Mists Of Projection", critelli("DarkBricksPuzzleGauntlet-8774"),
+    MistsOfProjection => "Mists Of Projection", critelli("DarkBricksPuzzleGauntlet-8774", 2026, 9, 11),
     MixedUseLubricant => "Mixed-Use Lubricant", official(Drm(1), "P205"),
-    MoonlightCatalyst => "Moonlight Catalyst", critelli("OM2025Weeklies11_MoonlightCatalyst"),
+    MoonlightCatalyst => "Moonlight Catalyst", critelli("OM2025Weeklies11_MoonlightCatalyst", 2025, 8, 30),
     MooringCable => "Mooring Cable", official(Journal(108, 1, &["Pugano, P."]), "P255"),
     MosaicTessera => "Mosaic Tessera", official(Journal(108, 10, &["Chi, X. N."]), "P304"),
-    MyArmsAreBound => "My Arms Are Bound", critelli("ea51e6dcb8f5b83c0ef6e6b1f965d57a"),
-    NightmareFuel => "Nightmare Fuel", critelli("OM2022Weeklies_NightmareFuel"),
-    Nylon => "Nylon", critelli("OM2025Weeklies9_Nylon"),
-    OneLastFavor => "One Last Favor", critelli("eee9d425ba613ebb491183f4f6349af9"),
-    OrangeVitriol => "Orange Vitriol", critelli("547de89828787801144566f080b0b213"),
-    OrnamentalPlating => "Ornamental Plating", critelli("OM2024Weeklies_OrnamentalPlating"),
-    Overloaded => "Overloaded", zlbb("w2501728107", "https://reddit.com/r/opus_magnum/comments/f7674d/week_5_overloaded/", &[
+    MyArmsAreBound => "My Arms Are Bound", critelli("ea51e6dcb8f5b83c0ef6e6b1f965d57a", 2026, 2, 8),
+    NightmareFuel => "Nightmare Fuel", critelli("OM2022Weeklies_NightmareFuel", 2022, 7, 2),
+    Nylon => "Nylon", critelli("OM2025Weeklies9_Nylon", 2025, 8, 16),
+    OneLastFavor => "One Last Favor", critelli("eee9d425ba613ebb491183f4f6349af9", 2026, 5, 8),
+    OrangeVitriol => "Orange Vitriol", critelli("547de89828787801144566f080b0b213", 2026, 4, 24),
+    OrnamentalPlating => "Ornamental Plating", critelli("OM2024Weeklies_OrnamentalPlating", 2024, 8, 10),
+    Overloaded => "Overloaded", zlbb("w2501728107", "https://reddit.com/r/opus_magnum/comments/f7674d/week_5_overloaded/", 2020, 2, 21, &[
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cycles, Metric::Cost, Metric::Instructions]))),
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Instructions, Metric::Cost, Metric::Cycles]))),
     ]),
-    PaintPreserver => "Paint Preserver", critelli("OM2026Weeklies7_PaintPreserver"),
-    PalatableTissue => "Palatable Tissue", critelli("OM2024Weeklies_PalatableTissue"),
-    Panacea => "Panacea", zlbb("w1698789743", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/", tournament2019metrics(&[Metric::Cost, Metric::Cycles, Metric::AreaV])),
-    PanaceaToPoison => "Panacea to Poison", zlbb("w2450511665", "https://drive.google.com/drive/folders/1-Ky7fk653U6Zr9bPgEzGDtI3QX7vVJlE", &[
+    PaintPreserver => "Paint Preserver", critelli("OM2026Weeklies7_PaintPreserver", 2026, 8, 14),
+    PalatableTissue => "Palatable Tissue", critelli("OM2024Weeklies_PalatableTissue", 2024, 6, 22),
+    Panacea => "Panacea", zlbb("w1698789743", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/", 2019, 3, 16, tournament2019metrics(&[Metric::Cost, Metric::Cycles, Metric::AreaV])),
+    PanaceaToPoison => "Panacea to Poison", zlbb("w2450511665", "https://drive.google.com/drive/folders/1-Ky7fk653U6Zr9bPgEzGDtI3QX7vVJlE", 2021, 1, 22, &[
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Div(&Metric::Product(&Metric::HeightV, &Metric::Cycles), &Metric::Const(3)), Metric::AreaV, Metric::Cost]))),
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Sum(&[Metric::Cost, Metric::Cycles, Metric::AreaV]), Metric::AreaV, Metric::Cycles]))),
     ]),
     ParadeRocketFuel => "Parade-Rocket Fuel", official(Appendix, "P082"),
-    ParetoPoppers => "Pareto Poppers", critelli("OM2025Weeklies4_ParetoPoppers"),
+    ParetoPoppers => "Pareto Poppers", critelli("OM2025Weeklies4_ParetoPoppers", 2025, 7, 12),
     ParticleReconstruction => "Particle Reconstruction", {
         let permutations = [
             collect![as HashSet<_>: Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 1, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 1 }, end: HexIndex { q: 1, r: 0 }, ty: BondType::Normal }],
@@ -1537,6 +1669,7 @@ puzzles! {
         ]).collect_vec();
         critelli_computation(
             "OM2023Weeklies_ParticleReconstruction",
+            2023, 8, 5,
             3,
             permutations.clone(),
             js_get_permutation_serverside(permutations),
@@ -1545,53 +1678,53 @@ puzzles! {
             ],
         )
     },
-    PassThroughAlloy => "Pass-Through Alloy", critelli("OM2025week7_Pass-Through_Alloy"),
+    PassThroughAlloy => "Pass-Through Alloy", critelli("OM2025week7_Pass-Through_Alloy", 2025, 2, 21),
     PatternMetal => "Pattern Metal", official(Drm(3), "P221"),
-    PhilosophersCatalyst => "Philosopher's Catalyst", critelli("OM2022Weeklies_PhiloCatalyst"),
+    PhilosophersCatalyst => "Philosopher's Catalyst", critelli("OM2022Weeklies_PhiloCatalyst", 2022, 6, 25),
     PigIron => "Pig Iron", official(Journal(108, 2, &["Woodstalker, H."]), "P260"),
-    PitchDropExperiment => "Pitch Drop Experiment", critelli("OM2024Weeklies_PitchDropExperiment"),
-    Plastic => "Plastic", critelli("ac6ab9dc43b0ac7ad9277c25ed5375e1"),
-    PotentPainkillers => "Potent Painkillers", critelli("Week_7_PotentPainkillers"),
-    PotentPotables => "Potent Potables", zlbb("w2501727721", "https://reddit.com/r/opus_magnum/comments/et5lyo/tournament_week_1_potent_potables/", &[
+    PitchDropExperiment => "Pitch Drop Experiment", critelli("OM2024Weeklies_PitchDropExperiment", 2024, 6, 15),
+    Plastic => "Plastic", critelli("ac6ab9dc43b0ac7ad9277c25ed5375e1", 2024, 3, 2),
+    PotentPainkillers => "Potent Painkillers", critelli("Week_7_PotentPainkillers", 2022, 2, 26),
+    PotentPotables => "Potent Potables", zlbb("w2501727721", "https://reddit.com/r/opus_magnum/comments/et5lyo/tournament_week_1_potent_potables/", 2020, 1, 24, &[
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cost, Metric::AreaV, Metric::Cycles]))),
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Sum(&[Metric::Cost, Metric::AreaV, Metric::Cycles]), Metric::Cost, Metric::AreaV]))),
     ]),
-    PousseCafe => "Pousse-Café", critelli("f883eb7701f420e1b1960eabe37b7fc1"),
+    PousseCafe => "Pousse-Café", critelli("f883eb7701f420e1b1960eabe37b7fc1", 2022, 6, 11),
     PrecisionMachineOil => "Precision Machine Oil", official(Campaign(1), "P012"),
     PreservativeSalt => "Preservative Salt", official(Journal(99, 2, &["Fontenelle, A."]), "P060"),
     PreservingWax => "Preserving Wax", official(Journal(108, 3, &["Il Sichay, V."]), "P267"),
-    PrismaticCatalyst => "Prismatic Catalyst", critelli("OM2026Weeklies3_PrismaticCatalyst"),
-    ProbeModule => "Probe Module", critelli("OM2023_W5_ProbeModule"),
-    ProfanedMoonshine => "Profaned Moonshine", critelli("DarkBricksPuzzleGauntlet-9472"),
+    PrismaticCatalyst => "Prismatic Catalyst", critelli("OM2026Weeklies3_PrismaticCatalyst", 2026, 7, 17),
+    ProbeModule => "Probe Module", critelli("OM2023_W5_ProbeModule", 2023, 2, 10),
+    ProfanedMoonshine => "Profaned Moonshine", critelli("DarkBricksPuzzleGauntlet-9472", 2026, 9, 11),
     ProofOfCompleteness => "Proof of Completeness", official(Journal(99, 4, &["Servin, H."]), "P069"),
     ProspectorsSolvent => "Prospector's Solvent", official(Journal(108, 2, &["Rebbick, S."]), "P261"),
     PurifiedGold => "Purified Gold", official(Campaign(4), "P036"),
     QuickeningCordial => "Quickening Cordial", official(Journal(108, 8, &["Adam, V."]), "P290"),
-    QuietHours => "Quiet Hours", critelli("ff6feb9ee69a0450a117eb2a7c7de784"),
-    QuintessentialAerogel => "Quintessential Aerogel", critelli("OM2022Weeklies_QuintAerogel"),
-    QuintessentialCatalyst => "Quintessential Catalyst", other("https://discord.com/channels/278707932089155584/296373951800541186/877363315687436349", &[
+    QuietHours => "Quiet Hours", critelli("ff6feb9ee69a0450a117eb2a7c7de784", 2026, 3, 13),
+    QuintessentialAerogel => "Quintessential Aerogel", critelli("OM2022Weeklies_QuintAerogel", 2022, 8, 27),
+    QuintessentialCatalyst => "Quintessential Catalyst", other("https://discord.com/channels/278707932089155584/296373951800541186/877363315687436349", 2021, 8, 18, &[
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Product(&Metric::Cycles, &Metric::Arms), Metric::Cost, Metric::AreaV]))),
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::AreaV, Metric::Instructions, Metric::Cost]))),
     ]),
-    QuintessentialExplosive => "Quintessential Explosive", critelli("OM2023Weeklies_QuintExplosive"),
+    QuintessentialExplosive => "Quintessential Explosive", critelli("OM2023Weeklies_QuintExplosive", 2023, 8, 19),
     QuintessentialMedium => "Quintessential Medium", official(Journal(99, 9, &["Price, A."]), "P107"),
-    QuintessentialStabilizer => "Quintessential Stabilizer", zlbb("w2450512626", "https://drive.google.com/drive/folders/1sommL5qdrN8fa0-D_dnwEJxVlwu34QgT", &[
+    QuintessentialStabilizer => "Quintessential Stabilizer", zlbb("w2450512626", "https://drive.google.com/drive/folders/1sommL5qdrN8fa0-D_dnwEJxVlwu34QgT", 2021, 3, 5, &[
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cycles, Metric::Cost, Metric::AreaV]))),
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cost, Metric::AreaV, Metric::Cycles]))),
     ]),
-    RadioReceivers => "Radio Receivers", critelli("Week_8_RadioReceivers"),
+    RadioReceivers => "Radio Receivers", critelli("Week_8_RadioReceivers", 2022, 3, 5),
     RatPoison => "Rat Poison", official(Appendix, "P074"),
-    RavarisRage => "Ravari's Rage", other("https://drive.google.com/drive/folders/1iy7KDmdkO4HGbjD1_jX_qb8mQ2IeSmS1", &[
+    RavarisRage => "Ravari's Rage", other("https://drive.google.com/drive/folders/1iy7KDmdkO4HGbjD1_jX_qb8mQ2IeSmS1", 2021, 2, 19, &[
         (Restriction::WithRavarisRage(&Restriction::All(&[Restriction::DefaultPreDrm, Restriction::Looping])), Metric::Ties(Cow::Borrowed(&[Metric::Rate, Metric::Cost, Metric::AreaV]))),
         (Restriction::WithRavarisRage(&Restriction::All(&[Restriction::DefaultPreDrm, Restriction::Looping])), Metric::Ties(Cow::Borrowed(&[Metric::AreaV, Metric::Cycles, Metric::Cost]))),
     ]),
-    RavarisRoad => "Ravari's Road", critelli("OM2025Weeklies7_RavarisRoad"),
+    RavarisRoad => "Ravari's Road", critelli("OM2025Weeklies7_RavarisRoad", 2025, 8, 2),
     RavarisWheel => "Ravari's Wheel", official(Journal(99, 3, &["Ravari, V."]), "P064"),
     ReactiveCinnabar => "Reactive Cinnabar", official(Journal(99, 1, &["Van Berlo, C."]), "P056"),
     ReactiveGold => "Reactive Gold", official(Journal(99, 7, &["Adam, V."]), "P095"),
     ReactiveLead => "Reactive Lead", official(Drm(2), "P210"),
     RealgarSeparation => "Realgar Separation", official(Journal(108, 2, &["Thinnes, Y."]), "P264"),
-    RecipeForDisaster => "Recipe for Disaster", critelli("OM2025Weeklies10_RecipeForDisaster"),
+    RecipeForDisaster => "Recipe for Disaster", critelli("OM2025Weeklies10_RecipeForDisaster", 2025, 8, 23),
     ReclaimedGold => "Reclaimed Gold", official(Journal(99, 12, &["Rallus, U."]), "P254"),
     ReconstructedSolvent => "Reconstructed Solvent", official(Appendix, "P084"),
     RefinedBronze => "Refined Bronze", official(Journal(99, 3, &["Wong, E."]), "P067"),
@@ -1599,78 +1732,79 @@ puzzles! {
     ResinGlue => "Resin Glue", official(Journal(108, 11, &["Apia, B."]), "P309"),
     ResonantCrystal => "Resonant Crystal", official(Journal(99, 3, &["Thiele, J."]), "P066"),
     ResonantDust => "Resonant Dust", official(Journal(99, 11, &["Azur, I."]), "P243"),
-    RetroRefining => "Retro Refining", critelli("OM2024Weeklies_RetroRefining"),
+    RetroRefining => "Retro Refining", critelli("OM2024Weeklies_RetroRefining", 2024, 7, 20),
     RibbedFletching => "Ribbed Fletching", official(Journal(108, 4, &["Zarc, T."]), "P273"),
-    RingEnlargement => "Ring Enlargement", critelli("OM2023Weeklies_RingEnlargement"),
+    RingEnlargement => "Ring Enlargement", critelli("OM2023Weeklies_RingEnlargement", 2023, 7, 1),
     RocketPropellant => "Rocket Propellant", official(Campaign(2), "P019"),
     RockwoolFiber => "Rockwool Fiber", official(Journal(108, 11, &["Silva, J."]), "P306"),
     Rosewater => "Rosewater", official(Journal(108, 7, &["Alinejad, Z."]), "P285"),
-    Roshambonite => "Roshambonite", critelli("b9ec009e82738509a09e554f359fb300"),
-    RustRemoval => "Rust Removal", critelli("Week_1_RustRemoval"),
+    Roshambonite => "Roshambonite", critelli("b9ec009e82738509a09e554f359fb300", 2026, 3, 27),
+    RustRemoval => "Rust Removal", critelli("Week_1_RustRemoval", 2022, 1, 8),
     SailclothThread => "Sailcloth Thread", official(Journal(99, 2, &["Toscano, G."]), "P061"),
-    SaltPackagingFactory => "Salt Packaging Factory", critelli("OM2023Weeklies_SaltPackagingFactory"),
+    SaltPackagingFactory => "Salt Packaging Factory", critelli("OM2023Weeklies_SaltPackagingFactory", 2023, 9, 2),
     SaltOfHartshorn => "Salt of Hartshorn", official(Journal(108, 6, &["Mâché, M."]), "P281"),
-    SaltOfSaturnByVinegar => "Salt of Saturn by Vinegar", critelli("9cec1eb8ff25a6ee4c73c77176524146"),
-    SandOfSuspension => "Sand of Suspension", critelli("OM2025Weeklies2_SandOfSuspension"),
-    SaturnsTree => "Saturn's Tree", critelli("9358b0efab6c1f32b850f898b8b2a675"),
+    SaltOfSaturnByVinegar => "Salt of Saturn by Vinegar", critelli("9cec1eb8ff25a6ee4c73c77176524146", 2025, 4, 26),
+    SandOfSuspension => "Sand of Suspension", critelli("OM2025Weeklies2_SandOfSuspension", 2025, 6, 28),
+    SaturnsTree => "Saturn's Tree", critelli("9358b0efab6c1f32b850f898b8b2a675", 2025, 5, 2),
     SaveriosTest => "Saverio's Test", official(Drm(1), "P201"),
     SaveriosTransformer => "Saverio's Transformer", official(Drm(1), "P204"),
-    ScrapMetal => "Scrap Metal", critelli("a1dcf5402132b1b4c28d63ef02942db8"),
+    ScrapMetal => "Scrap Metal", critelli("a1dcf5402132b1b4c28d63ef02942db8", 2023, 10, 14),
     SealSolvent => "Seal Solvent", official(Campaign(3), "P026"),
-    SelfOrganizingFluid => "Self-Organizing Fluid", critelli("OM2025week3_Self-Organizing_Fluid"),
-    SelfPressurizingGas => "Self-Pressurizing Gas", critelli("OM2023_W1_SelfPressurizingGas"),
-    SeptstabilizedSalt => "Septstabilized Salt", critelli("9c14e48d17cebae4165828037b56cc7c"),
-    ServinsWheel => "Servin's Wheel", critelli("OM2022Weeklies_ServinsWheel"),
+    SelfOrganizingFluid => "Self-Organizing Fluid", critelli("OM2025week3_Self-Organizing_Fluid", 2025, 1, 17),
+    SelfPressurizingGas => "Self-Pressurizing Gas", critelli("OM2023_W1_SelfPressurizingGas", 2023, 1, 13),
+    SeptstabilizedSalt => "Septstabilized Salt", critelli("9c14e48d17cebae4165828037b56cc7c", 2026, 1, 16),
+    ServinsWheel => "Servin's Wheel", critelli("OM2022Weeklies_ServinsWheel", 2022, 7, 16),
     ShimmeringChain => "Shimmering Chain", official(Journal(108, 9, &["Mallard, J."]), "P295"),
-    SigmarsGarden => "Sigmar's Garden", critelli("af2e9ada2b4a888463d1aef200c58eb9"),
-    SilverAppleOfDiscord => "Silver Apple of Discord", critelli("3e07b2ebbabd5ea7e9b87f8cd35d679f"),
+    SigmarsGarden => "Sigmar's Garden", critelli("af2e9ada2b4a888463d1aef200c58eb9", 2026, 1, 23),
+    SilverAppleOfDiscord => "Silver Apple of Discord", critelli("3e07b2ebbabd5ea7e9b87f8cd35d679f", 2025, 12, 21),
     SilverCaustic => "Silver Caustic", official(Journal(99, 1, &["Van Berlo, C."]), "P057"),
     SilverDust => "Silver Dust", official(Drm(1), "P203"),
     SilverPaint => "Silver Paint", official(Appendix, "P076"),
-    Simulacrum => "Simulacrum", critelli("ff3f211965e5ba83ac8a080335ddd04e"),
+    Simulacrum => "Simulacrum", critelli("ff3f211965e5ba83ac8a080335ddd04e", 2023, 12, 31),
     SleepingTonic => "Sleeping Tonic", official(Journal(99, 11, &["Axton, H."]), "P242"),
-    SmogNeutralization => "Smog Neutralization", critelli("OM2025Weeklies5_SmogNeutralization"),
-    SnowAmputation => "Snow Amputation", critelli("0d8384f8b042a93f2cbb1af82c339b9c"),
+    SmogNeutralization => "Smog Neutralization", critelli("OM2025Weeklies5_SmogNeutralization", 2025, 7, 19),
+    SnowAmputation => "Snow Amputation", critelli("0d8384f8b042a93f2cbb1af82c339b9c", 2026, 3, 6),
     SodaAsh => "Soda Ash", official(Journal(108, 3, &["Gue, E."]), "P265"),
     SolderWire => "Solder Wire", official(Drm(2), "P209"),
-    SoothingSalve => "Soothing Salve", critelli("Week_2_SoothingSalve"),
-    SophickMercury => "Sophick Mercury (2024 weeklies)", critelli("OM2024Weeklies_SophickMercury"),
+    SoothingSalve => "Soothing Salve", critelli("Week_2_SoothingSalve", 2022, 1, 15),
+    SophickMercury => "Sophick Mercury (2024 weeklies)", critelli("OM2024Weeklies_SophickMercury", 2024, 7, 13),
     SophickMercuryJournal => "Sophick Mercury (journal)", official(Journal(99, 12, &["Il Sichay, V.", "Nick, P. A."]), "P250"),
     SparkingPyrite => "Sparking Pyrite", official(Journal(108, 4, &["Azur, I."]), "P274"),
     SpecialAmaro => "Special Amaro", official(Appendix, "P083"),
     SpyglassCrystal => "Spyglass Crystal", official(Journal(99, 2, &["Bruckner, J."]), "P063"),
-    StabilizedEverything => "Stabilized Everything", other("https://discord.com/channels/278707932089155584/296373951800541186/882448331119427604", &[
+    StabilizedEverything => "Stabilized Everything", other("https://discord.com/channels/278707932089155584/296373951800541186/882448331119427604", 2021, 9, 1, &[
         (Restriction::DefaultPreDrm, Metric::Aesthetics),
         (Restriction::None, Metric::Aesthetics),
     ]),
-    StabilizedGold => "Stabilized Gold", critelli("OM2022Weeklies_StabilizedGold"),
+    StabilizedGold => "Stabilized Gold", critelli("OM2022Weeklies_StabilizedGold", 2022, 8, 13),
     StabilizedWater => "Stabilized Water", official(Prologue, "P007"),
     StainRemover => "Stain Remover", official(Campaign(4), "P034"),
     StaminaPotion => "Stamina Potion", official(Campaign(1), "P015"),
     SteelWool => "Steel Wool", official(Journal(108, 3, &["Joshua, Y."]), "P268"),
     StormSensingPotion => "Storm-Sensing Potion", official(Journal(108, 8, &["Ames, F. L."]), "P294"),
-    SuperconductiveCopper => "Superconductive Copper", other("https://discord.com/channels/278707932089155584/296373951800541186/854533289816358922", &[
+    SuperconductiveCopper => "Superconductive Copper", other("https://discord.com/channels/278707932089155584/296373951800541186/854533289816358922", 2021, 6, 16, &[
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Product(&Metric::Sum(&[Metric::Arms, Metric::Const(2)]), &Metric::Cycles), Metric::AreaV, Metric::Cost]))),
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::AreaV, Metric::Instructions, Metric::Cost]))),
     ]),
     SurrenderFlare => "Surrender Flare", official(Campaign(2), "P022"),
-    SurrendierFlareSalt => "Surrendier Flare Salt", critelli("a77d68acaa9f0bb53a022686d5638983"),
+    SurrendierFlareSalt => "Surrendier Flare Salt", critelli("a77d68acaa9f0bb53a022686d5638983", 2026, 6, 28),
     SurveyingMagnet => "Surveying Magnet", official(Journal(108, 2, &["Warden, I."]), "P262"),
-    SuspiciouslyStableSubstance => "Suspiciously Stable Substance", critelli("OM2022Weeklies_SSS"),
+    SuspiciouslyStableSubstance => "Suspiciously Stable Substance", critelli("OM2022Weeklies_SSS", 2022, 7, 30),
     SutureThread => "Suture Thread", official(Journal(99, 5, &["Rodrigues, I."]), "P085"),
-    SwampFiber => "Swamp Fiber", zlbb("w2501727889", "https://reddit.com/r/opus_magnum/comments/f05mp5/week_3_swamp_fiber/", &[
+    SwampFiber => "Swamp Fiber", zlbb("w2501727889", "https://reddit.com/r/opus_magnum/comments/f05mp5/week_3_swamp_fiber/", 2020, 2, 7, &[
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cycles, Metric::AreaV]))),
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Sum(&[Metric::Instructions, Metric::Div(&Metric::Cost, &Metric::Const(5))]), Metric::Instructions]))),
     ]),
-    SweeperRod => "Sweeper Rod", critelli("OM2022Weeklies_SweeperRod"),
+    SweeperRod => "Sweeper Rod", critelli("OM2022Weeklies_SweeperRod", 2022, 6, 11),
     SwordAlloy => "Sword Alloy", official(Campaign(4), "P033"),
     SynthesisViaAlcohol => "Synthesis Via Alcohol", official(Journal(99, 4, &["Servin, H."]), "P071"),
     SyntheticMalachite => "Synthetic Malachite", official(Journal(99, 9, &["Klusseter, S."]), "P109"),
-    Taricene => "Taricene", critelli("21042bbbbef69aef2000df9b97a4df9b"),
-    TaxFraud => "Tax Fraud", critelli("a39b83445002fbdea218e8b184a9e478"),
+    Taricene => "Taricene", critelli("21042bbbbef69aef2000df9b97a4df9b", 2022, 5, 10),
+    TaxFraud => "Tax Fraud", critelli("a39b83445002fbdea218e8b184a9e478", 2026, 4, 3),
     TemperedGlass => "Tempered Glass", official(Journal(108, 10, &["Tineri, P."]), "P301"),
     TheAmazingEverythingMachine => "The Amazing Everything-Machine", critelli_computation(
         "OM2025week4_The_Amazing_Everything-Machine",
+        2025, 1, 24,
         10,
         CARDINALS.into_iter().chain(METALS).map(|atom| [
             vec![Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => atom], bonds: collect![] }],
@@ -1688,18 +1822,19 @@ puzzles! {
             (Restriction::All(&[Restriction::DefaultPreDrm, Restriction::NoOutputConditionals, Restriction::OneVariableReagentPull]), ComputationMetric::AverageNoVary(Metric::Sum(&[Metric::Cost, Metric::Product(&Metric::Rate, &Metric::Const(24)), Metric::AreaInf, Metric::Instructions]))),
         ],
     ),
-    ThermalFuse => "Thermal Fuse", critelli("d3689000418b9687654554f28324d8d0"),
-    ThermicCapacitor => "Thermic Capacitor", critelli("om2025week2_Thermic_Capacitor"),
-    ThermiteTape => "Thermite Tape", critelli("OM2025Weeklies3_ThermiteTape"),
-    ThingsIWontWorkWith => "Things I Won't Work With", other("https://discord.com/channels/278707932089155584/918884273602302002", &[
+    ThermalFuse => "Thermal Fuse", critelli("d3689000418b9687654554f28324d8d0", 2024, 3, 6),
+    ThermicCapacitor => "Thermic Capacitor", critelli("om2025week2_Thermic_Capacitor", 2025, 1, 10),
+    ThermiteTape => "Thermite Tape", critelli("OM2025Weeklies3_ThermiteTape", 2025, 7, 5),
+    ThingsIWontWorkWith => "Things I Won't Work With", other("https://discord.com/channels/278707932089155584/918884273602302002", 2021, 12, 10, &[
         (Restriction::DefaultPreDrm, Metric::SpeedsolveMins),
         (Restriction::DefaultPreDrm, Metric::Sum(&[Metric::Cost, Metric::Cycles, Metric::AreaV, Metric::Instructions])),
     ]),
     TimingCrystal => "Timing Crystal", official(Campaign(5), "P042"),
-    Tinsel => "Tinsel", critelli("bf33acfc5ce6933ae39b8ee5deb663af"),
+    Tinsel => "Tinsel", critelli("bf33acfc5ce6933ae39b8ee5deb663af", 2024, 12, 14),
     TonicOfHydration => "Tonic of Hydration", official(Journal(99, 5, &["Klusseter, S."]), "P089"),
     TonicOfTransmogrification => "Tonic of Transmogrification", critelli_computation(
         "OM2023Weeklies_TransTonic",
+        2023, 6, 24,
         9916,
         (0..9916).map(|index| [
             vec![state_from_enumeration_index(index)],
@@ -1716,8 +1851,8 @@ puzzles! {
             (Restriction::DefaultPreDrm, ComputationMetric::RestrictedMax(Metric::Sum(&[Metric::Cost, Metric::Cycles, Metric::AreaV]))),
         ],
     ),
-    TouchGrass => "Touch Grass", critelli("OM2024Weeklies_TouchGrass"),
-    Touchstone => "Touchstone (2024 tournament)", critelli("6f37903681423b320da82fb57900291d"),
+    TouchGrass => "Touch Grass", critelli("OM2024Weeklies_TouchGrass", 2024, 8, 31),
+    Touchstone => "Touchstone (2024 tournament)", critelli("6f37903681423b320da82fb57900291d", 2024, 2, 7),
     TouchstoneJournal => "Touchstone (journal)", official(Journal(99, 10, &["Critelli, Z."]), "P245"),
     Transmutation110 => "Transmutation CX", {
         let permutations = all().array_combinations_with_reps().map(|[a, b, c, d, e, f]| {
@@ -1745,6 +1880,7 @@ puzzles! {
         }).collect_vec();
         critelli_computation(
             "Week_9_TransmutationCX",
+            2022, 3, 12,
             64,
             permutations.clone(),
             js_get_permutation_serverside(permutations),
@@ -1756,13 +1892,14 @@ puzzles! {
     UmbralMascara => "Umbral Mascara", official(Journal(108, 8, &["Demos, A."]), "P292"),
     UniversalCompound => "Universal Compound", official(Journal(99, 4, &["Tolomeo, N."]), "P072"),
     UniversalOintment => "Universal Ointment", official(Journal(108, 12, &["Demos, A."]), "P314"),
-    UniversalPlaster => "Universal Plaster", other("https://discord.com/channels/278707932089155584/911404167598329906", &[
+    UniversalPlaster => "Universal Plaster", other("https://discord.com/channels/278707932089155584/911404167598329906", 2021, 11, 20, &[
         (Restriction::DefaultPreDrm, Metric::SpeedsolveMins),
         (Restriction::DefaultPreDrm, Metric::Sum(&[Metric::Cost, Metric::Cycles, Metric::AreaV])),
     ]),
     UniversalSolvent => "Universal Solvent", official(Campaign(5), "P043"),
     UnnamedCustomPuzzle => "Unnamed Custom Puzzle", critelli_computation(
         "OM2025Weeklies12_Unnamed",
+        2025, 9, 6,
         9916,
         (0..9916).map(|index| [
             vec![state_from_enumeration_index(index)],
@@ -1780,26 +1917,26 @@ puzzles! {
         ],
     ),
     UnstableCompound => "Unstable Compound", official(Campaign(5), "P040"),
-    UnstableSovrium => "Unstable Sovrium", critelli("OM2024Weeklies_UnstableSovrium"),
-    Unwinding => "Unwinding", zlbb("w1611998067", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/", &[
+    UnstableSovrium => "Unstable Sovrium", critelli("OM2024Weeklies_UnstableSovrium", 2024, 8, 24),
+    Unwinding => "Unwinding", zlbb("w1611998067", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/", 2019, 1, 5, &[
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::AreaV, Metric::Cycles]))),
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cost, Metric::AreaV]))),
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cycles, Metric::AreaV]))),
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cycles, Metric::Cost]))),
     ]),
-    VaccineTemplate => "Vaccine Template", critelli("5d936a1ca336f6658f097260eda56a8f"),
+    VaccineTemplate => "Vaccine Template", critelli("5d936a1ca336f6658f097260eda56a8f", 2023, 8, 26),
     VanBerlosChain => "Van Berlo's Chain", official(Journal(99, 1, &["Van Berlo, C."]), "P055"),
     VanBerlosPivots => "Van Berlo's Pivots", official(Journal(99, 7, &["Kryger, L."]), "P096"),
-    VanBerlosRotor => "Van Berlo's Rotor", critelli("OM2026Weeklies5_VanBerlosRotor"),
+    VanBerlosRotor => "Van Berlo's Rotor", critelli("OM2026Weeklies5_VanBerlosRotor", 2026, 7, 31),
     VanBerlosWheel => "Van Berlo's Wheel", official(Journal(99, 1, &["Van Berlo, C."]), "P054"),
     VanishingMaterial => "Vanishing Material", official(Journal(99, 9, &["Price, A."]), "P105"),
     VaporOfLevity => "Vapor of Levity", official(Appendix, "P078"),
-    VaporizedPropellant => "Vaporized Propellant", other("https://discord.com/channels/278707932089155584/296373951800541186/872298625798119455", &[
+    VaporizedPropellant => "Vaporized Propellant", other("https://discord.com/channels/278707932089155584/296373951800541186/872298625798119455", 2021, 8, 4, &[
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cycles, Metric::Cost, Metric::AreaV]))),
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Sum(&[Metric::Cost, Metric::Cycles, Metric::AreaV]), Metric::Instructions]))),
     ]),
     VaporousSolvent => "Vaporous Solvent", official(Journal(99, 7, &["Klusseter, S."]), "P098"),
-    VaporousSolventToStainRemover => "Vaporous Solvent to Stain Remover", other("https://discord.com/channels/278707932089155584/921747482386501642", &[
+    VaporousSolventToStainRemover => "Vaporous Solvent to Stain Remover", other("https://discord.com/channels/278707932089155584/921747482386501642", 2021, 12, 18, &[
         (Restriction::All(&[Restriction::DefaultPreDrm, Restriction::Le(Metric::AreaV, Metric::Const(100))]), Metric::SpeedsolveMins),
         (Restriction::All(&[Restriction::DefaultPreDrm, Restriction::Trackless]), Metric::Ties(Cow::Borrowed(&[Metric::Instructions, Metric::Cost]))),
     ]),
@@ -1808,25 +1945,26 @@ puzzles! {
     VeryDarkThread => "Very Dark Thread", official(Campaign(3), "P029"),
     ViaMedia => "Via Media", official(Journal(108, 6, &["Azur, I."]), "P284"),
     ViaQuicksilver => "Via Quicksilver", official(Drm(3), "P216"),
-    VirulentVector => "Virulent Vector", zlbb("w1698785238", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/", tournament2019metrics(&[Metric::Div(&Metric::Cost, &Metric::Const(10)), Metric::Cycles, Metric::AreaV])),
-    ViscousAdhesive => "Viscous Adhesive", critelli("OM2023Weeklies_ViscousAdhesive"),
+    VirulentVector => "Virulent Vector", zlbb("w1698785238", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/", 2019, 1, 26, tournament2019metrics(&[Metric::Div(&Metric::Cost, &Metric::Const(10)), Metric::Cycles, Metric::AreaV])),
+    ViscousAdhesive => "Viscous Adhesive", critelli("OM2023Weeklies_ViscousAdhesive", 2023, 7, 29),
     ViscousSludge => "Viscous Sludge", official(Appendix, "P080"),
-    VisibleInk => "Visible Ink?", critelli("OM2026Weeklies4_VisibleInk"),
+    VisibleInk => "Visible Ink?", critelli("OM2026Weeklies4_VisibleInk", 2026, 7, 24),
     VisillaryAnaesthetic => "Visillary Anaesthetic", official(Journal(99, 8, &["Rallus, U."]), "P102"),
-    VolatilityAndTranquility => "Volatility and Tranquility", zlbb("w2501727977", "https://reddit.com/r/opus_magnum/comments/f3n89y/week_4_volatility_and_tranquility/", &[
+    VolatilityAndTranquility => "Volatility and Tranquility", zlbb("w2501727977", "https://reddit.com/r/opus_magnum/comments/f3n89y/week_4_volatility_and_tranquility/", 2020, 2, 14, &[
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Cost, Metric::Cycles, Metric::AreaV]))),
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::AreaV, Metric::Cycles, Metric::Cost]))),
     ]),
     VoltaicCoil => "Voltaic Coil", official(Campaign(5), "P039"),
     WakefulnessPotion => "Wakefulness Potion", official(Journal(99, 5, &["Foudre, G."]), "P088"),
     WarmingTonic => "Warming Tonic", official(Campaign(3), "P028"),
-    WarpFuel => "Warp Fuel", critelli("OM2023_W7_WarpFuel"),
-    WasteReclamation => "Waste Reclamation", critelli("OM2023_W2_WasteReclamation"),
+    WarpFuel => "Warp Fuel", critelli("OM2023_W7_WarpFuel", 2023, 3, 3),
+    WasteReclamation => "Waste Reclamation", critelli("OM2023_W2_WasteReclamation", 2023, 1, 20),
     WaterPurifier => "Water Purifier", official(Campaign(3), "P025"),
     WaterproofSealant => "Waterproof Sealant", official(Campaign(1), "P011"),
     WeldingThermite => "Welding Thermite", official(Journal(99, 6, &["Le'Feur, T."]), "P094"),
     WheelInversion => "Wheel Inversion", computation(
         "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/",
+        2019, 3, 9,
         15625,
         CARDINALS.into_iter().chain(iter::once(Atom::Salt)).array_combinations_with_reps().map(|[a, b, c, d, e, f]| {
             fn invert(atom: Atom) -> Atom {
@@ -1874,7 +2012,7 @@ puzzles! {
         ],
     ),
     WheelRepresentation => "Wheel Representation", official(Journal(99, 4, &["Servin, H."]), "P070"),
-    WireFormingAndUnforming => "Wire Forming and Unforming", zlbb("w1698784331", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/", tournament2019metrics(&[Metric::Div(&Metric::Cost, &Metric::Const(10)), Metric::Div(&Metric::Cycles, &Metric::Const(5)), Metric::AreaV])),
+    WireFormingAndUnforming => "Wire Forming and Unforming", zlbb("w1698784331", "https://reddit.com/r/opus_magnum/comments/abpxj8/opus_magnum_tourney/", 2019, 1, 12, tournament2019metrics(&[Metric::Div(&Metric::Cost, &Metric::Const(10)), Metric::Div(&Metric::Cycles, &Metric::Const(5)), Metric::AreaV])),
     XylemSubstitute => "Xylem Substitute", official(Journal(108, 9, &["Clover, C."]), "P297"),
 }
 
