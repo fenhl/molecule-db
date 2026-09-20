@@ -479,7 +479,7 @@ async fn dynamic_page(config: &Config, http_client: &reqwest::Client, tab: Tab, 
                     hr;
                     p {
                         : "Opus Magnum molecule database hosted by ";
-                        : external_link(config, http_client, "https://fenhl.net/", "Fenhl").await.unwrap();
+                        : external_link(config, http_client, "https://omwiki.hoekri.nl/index.php/User:Fenhl", "Fenhl").await.unwrap();
                         : " • ";
                         : external_link(config, http_client, "https://fenhl.net/disc", "disclaimer").await.unwrap();
                         : " • ";
