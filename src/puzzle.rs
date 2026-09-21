@@ -562,7 +562,10 @@ pub(crate) async fn get(config: &State<Config>, http_client: &State<reqwest::Cli
             };
             @let url = {
                 let mut url = Url::parse("https://omwiki.hoekri.nl/index.php").unwrap();
-                url.path_segments_mut().unwrap().push(&puzzle.as_str().replace(' ', "_"));
+                url.path_segments_mut().unwrap().push(&format!("{}{}", puzzle.as_str().replace(' ', "_"), match puzzle {
+                    Puzzle::RavarisWheel | Puzzle::VanBerlosWheel => "_(puzzle)",
+                    _ => "",
+                }));
                 url
             };
             : external_link_class(config, http_client, if missing { "redlink" } else { "" }, url.as_str(), "Wiki article").await?;
