@@ -563,7 +563,7 @@ pub(crate) async fn get(config: &State<Config>, http_client: &State<reqwest::Cli
             @let url = {
                 let mut url = Url::parse("https://omwiki.hoekri.nl/index.php").unwrap();
                 url.path_segments_mut().unwrap().push(&format!("{}{}", puzzle.as_str().replace(' ', "_"), match puzzle {
-                    Puzzle::RavarisWheel | Puzzle::VanBerlosWheel => "_(puzzle)",
+                    Puzzle::RavarisWheel | Puzzle::SigmarsGarden | Puzzle::VanBerlosWheel => "_(puzzle)",
                     _ => "",
                 }));
                 url
