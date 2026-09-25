@@ -1618,6 +1618,7 @@ puzzles! {
         ],
     ),
     MetalDivision => "Metal Division", official(Drm(2), "P208"),
+    MetallicPlastic => "Metallic Plastic", critelli("851d99d8f87fc6da583676b357dfa6be", 2026, 9, 25),
     MetallicTincture => "Metallic Tincture", official(Drm(1), "P206"),
     MildSteel => "Mild Steel", official(Journal(108, 11, &["Kagami, T."]), "P308"),
     MineralOil => "Mineral Oil", official(Journal(108, 11, &["Kia, J."]), "P307"),
