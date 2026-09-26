@@ -1750,6 +1750,7 @@ puzzles! {
     SaltPackagingFactory => "Salt Packaging Factory", critelli("OM2023Weeklies_SaltPackagingFactory", 2023, 9, 2),
     SaltOfHartshorn => "Salt of Hartshorn", official(Journal(108, 6, &["Mâché, M."]), "P281"),
     SaltOfSaturnByVinegar => "Salt of Saturn by Vinegar", critelli("9cec1eb8ff25a6ee4c73c77176524146", 2025, 4, 26),
+    SaltOfSelene => "Salt of Selene", critelli("DisjointJournal_SaltOfSelene", 2026, 9, 26),
     SandOfSuspension => "Sand of Suspension", critelli("OM2025Weeklies2_SandOfSuspension", 2025, 6, 28),
     SaturnsTree => "Saturn's Tree", critelli("9358b0efab6c1f32b850f898b8b2a675", 2025, 5, 2),
     SaveriosTest => "Saverio's Test", official(Drm(1), "P201"),
