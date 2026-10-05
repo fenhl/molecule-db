@@ -82,6 +82,7 @@ use {
         static_page,
     },
 };
+#[cfg(feature = "night")] use crate::night_report;
 
 pub(crate) enum OfficialCollection {
     Prologue,
@@ -513,7 +514,6 @@ pub(crate) async fn index(config: &State<Config>, http_client: &State<reqwest::C
 #[derive(Debug, thiserror::Error, rocket_util::Error)]
 pub(crate) enum GetError {
     #[error(transparent)] Json(#[from] serde_json::Error),
-    #[error(transparent)] MediaWiki(#[from] mediawiki::MediaWikiError),
     #[error(transparent)] Metrics(#[from] MetricsError),
     #[error(transparent)] Other(#[from] Error),
 }
@@ -535,6 +535,10 @@ pub(crate) async fn get(config: &State<Config>, http_client: &State<reqwest::Cli
             }
         }
         p {
+            @let title = format!("{puzzle}{}", match puzzle {
+                Puzzle::RavarisWheel | Puzzle::SigmarsGarden | Puzzle::VanBerlosWheel => " (puzzle)",
+                _ => "",
+            });
             @let missing = {
                 #[derive(Deserialize)]
                 struct Response {
@@ -552,20 +556,26 @@ pub(crate) async fn get(config: &State<Config>, http_client: &State<reqwest::Cli
                     missing: bool,
                 }
 
-                let mut json = mw_api.get_query_api_json_all(&collect![
+                match mw_api.get_query_api_json_all(&collect![
                     format!("action") => format!("query"),
                     format!("formatversion") => format!("2"),
-                    format!("titles") => puzzle.to_string(),
-                ]).await?;
-                let Response { query: Query { pages: [Page { missing }] } } = serde_json::from_value(json)?;
-                missing
+                    format!("titles") => title.clone(),
+                ]).await {
+                    Ok(json) => {
+                        let Response { query: Query { pages: [Page { missing }] } } = serde_json::from_value(json)?;
+                        missing
+                    }
+                    Err(e) => {
+                        #[cfg(feature = "night")] {
+                            night_report(config, http_client, "/dev/dushanbe/mol/wikiError", Some(&format!("error checking if wiki article {title:?} exists: {e} ({e:?})"))).await?;
+                        }
+                        true
+                    }
+                }
             };
             @let url = {
                 let mut url = Url::parse("https://omwiki.hoekri.nl/index.php").unwrap();
-                url.path_segments_mut().unwrap().push(&format!("{}{}", puzzle.as_str().replace(' ', "_"), match puzzle {
-                    Puzzle::RavarisWheel | Puzzle::SigmarsGarden | Puzzle::VanBerlosWheel => "_(puzzle)",
-                    _ => "",
-                }));
+                url.path_segments_mut().unwrap().push(&title.replace(' ', "_"));
                 url
             };
             : external_link_class(config, http_client, if missing { "redlink" } else { "" }, url.as_str(), "Wiki article").await?;
