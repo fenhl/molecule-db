@@ -961,6 +961,83 @@ async fn molecules_list(config: &State<Config>, http_client: &State<reqwest::Cli
     }, html! {}).await
 }
 
+#[rocket::catch(404)]
+async fn not_found(request: &Request<'_>) -> RawHtml<String> {
+    let config = request.guard::<&State<Config>>().await.expect("missing config");
+    let http_client = request.guard::<&State<reqwest::Client>>().await.expect("missing HTTP client");
+    dynamic_page(config, http_client, Tab::MoleculeInput, true, "Not Found — Opus Magnum Molecule Database", html! {
+        main {
+            h1 : "Error 404: Not Found";
+            p : "Sorry, this page doesn't exist. Try one of the tabs above.";
+        }
+    }, html! {}).await
+}
+
+#[rocket::catch(500)]
+async fn internal_server_error(request: &Request<'_>) -> RawHtml<String> {
+    let config = request.guard::<&State<Config>>().await.expect("missing config");
+    let http_client = request.guard::<&State<reqwest::Client>>().await.expect("missing HTTP client");
+    let reported = cfg_select! {
+        feature = "night" => match night_report(config, http_client, "/dev/dushanbe/mol/error", Some("internal server error")).await {
+            Ok(()) => true,
+            Err(e) => {
+                eprintln!("failed to send Night report for internal server error: {e}");
+                eprintln!("debug info: {e:?}");
+                false
+            },
+        },
+        _ => false,
+    };
+    dynamic_page(config, http_client, Tab::MoleculeInput, true, "Internal Server Error — Opus Magnum Molecule Database", html! {
+        main {
+            h1 : "Error 500: Internal Server Error";
+            p {
+                : "Sorry, something went wrong. ";
+                @if reported {
+                    : "Fenhl has been notified.";
+                } else {
+                    : "Please notify Fenhl on Discord.";
+                }
+            }
+        }
+    }, html! {}).await
+}
+
+#[rocket::catch(default)]
+async fn fallback_catcher(status: Status, request: &Request<'_>) -> RawHtml<String> {
+    let config = request.guard::<&State<Config>>().await.expect("missing config");
+    let http_client = request.guard::<&State<reqwest::Client>>().await.expect("missing HTTP client");
+    let reported = cfg_select! {
+        feature = "night" => match night_report(config, http_client, "/dev/dushanbe/mol/error", Some(&format!("responding with unexpected HTTP status code: {} {}", status.code, status.reason_lossy()))).await {
+            Ok(()) => true,
+            Err(e) => {
+                eprintln!("failed to send Night report for unexpected status code {}: {e}", status.code);
+                eprintln!("debug info: {e:?}");
+                false
+            },
+        },
+        _ => false,
+    };
+    dynamic_page(config, http_client, Tab::MoleculeInput, true, &format!("{} — Opus Magnum Molecule Database", status.reason_lossy()), html! {
+        main {
+            h1 {
+                : "Error ";
+                : status.code;
+                : ": ";
+                : status.reason_lossy();
+            }
+            p {
+                : "Sorry, something went wrong. ";
+                @if reported {
+                    : "Fenhl has been notified.";
+                } else {
+                    : "Please notify Fenhl on Discord.";
+                }
+            }
+        }
+    }, html! {}).await
+}
+
 #[derive(clap::Parser)]
 struct Args {
     #[clap(subcommand)]
@@ -1145,7 +1222,11 @@ async fn main(Args { subcommand }: Args) -> Result<(), Error> {
             puzzle::get,
         ])
         .mount("/static", FileServer::without_index("assets/static"))
-        //TODO error catchers
+        .register("/", rocket::catchers![
+            not_found,
+            internal_server_error,
+            fallback_catcher,
+        ])
         .manage(config)
         .manage(http_client)
         .manage({
