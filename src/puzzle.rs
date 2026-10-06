@@ -63,6 +63,7 @@ use {
         Config,
         Error,
         IfNoneMatch,
+        MediaWikiApi,
         MoleculeExt as _,
         StaticPageResponse,
         Tab,
@@ -519,7 +520,7 @@ pub(crate) enum GetError {
 }
 
 #[rocket::get("/puzzle/<puzzle>")]
-pub(crate) async fn get(config: &State<Config>, http_client: &State<reqwest::Client>, mw_api: &State<mediawiki::api::Api>, puzzle: Puzzle) -> Result<RawHtml<String>, GetError> {
+pub(crate) async fn get(config: &State<Config>, http_client: &State<reqwest::Client>, mw_api: &State<MediaWikiApi>, puzzle: Puzzle) -> Result<RawHtml<String>, GetError> {
     Ok(dynamic_page(config, http_client, Tab::Puzzles, true, html! {
         : puzzle;
         : " — Opus Magnum Molecule Database";

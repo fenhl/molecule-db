@@ -28,6 +28,8 @@ use {
     gophermap::GopherEntry,
     itertools::Itertools as _,
     lazy_regex::regex_captures,
+    log_lock::*,
+    mediawiki::MediaWikiError,
     omsim_rs::{
         data::*,
         parse::parse_puzzle,
@@ -1038,6 +1040,36 @@ async fn fallback_catcher(status: Status, request: &Request<'_>) -> RawHtml<Stri
     }, html! {}).await
 }
 
+struct MediaWikiApi(Mutex<Option<mediawiki::api::Api>>);
+
+impl MediaWikiApi {
+    async fn new_api() -> Result<mediawiki::api::Api, MediaWikiError> {
+        let mut api = mediawiki::api::Api::new_from_builder("https://omwiki.hoekri.nl/api.php", reqwest::Client::builder()
+            .timeout(Duration::from_secs(30))
+            .use_rustls_tls()
+            .hickory_dns(true)
+            .https_only(true)
+        ).await?;
+        api.set_user_agent(concat!("MoleculeDb/", env!("CARGO_PKG_VERSION"), " (https://github.com/fenhl/molecule-db)"));
+        Ok(api)
+    }
+
+    async fn new() -> Self {
+        Self(Mutex::new(Self::new_api().await.ok()))
+    }
+
+    async fn get_query_api_json_all(&self, params: &HashMap<String, String>) -> Result<serde_json::Value, MediaWikiError> {
+        lock!(api = self.0; {
+            let api = if let Some(api) = &*api {
+                api
+            } else {
+                api.insert(Self::new_api().await?)
+            };
+            api.get_query_api_json_all(params).await
+        })
+    }
+}
+
 #[derive(clap::Parser)]
 struct Args {
     #[clap(subcommand)]
@@ -1062,7 +1094,7 @@ enum Error {
     #[error(transparent)] GitPrepareFetch(#[from] gix::remote::fetch::prepare::Error),
     #[error(transparent)] HexIndexEncode(#[from] proto::v0::HexIndexEncodeError),
     #[error(transparent)] Http(#[from] reqwest::Error),
-    #[error(transparent)] MediaWiki(#[from] mediawiki::MediaWikiError),
+    #[error(transparent)] MediaWiki(#[from] MediaWikiError),
     #[error(transparent)] Rocket(#[from] rocket::Error),
     #[error(transparent)] Url(#[from] url::ParseError),
     #[error(transparent)] Wheel(#[from] wheel::Error),
@@ -1229,16 +1261,7 @@ async fn main(Args { subcommand }: Args) -> Result<(), Error> {
         ])
         .manage(config)
         .manage(http_client)
-        .manage({
-            let mut api = mediawiki::api::Api::new_from_builder("https://omwiki.hoekri.nl/api.php", reqwest::Client::builder()
-                .timeout(Duration::from_secs(30))
-                .use_rustls_tls()
-                .hickory_dns(true)
-                .https_only(true)
-            ).await?;
-            api.set_user_agent(concat!("MoleculeDb/", env!("CARGO_PKG_VERSION"), " (https://github.com/fenhl/molecule-db)"));
-            api
-        })
+        .manage(MediaWikiApi::new().await)
         .launch().await?;
     }
     Ok(())
