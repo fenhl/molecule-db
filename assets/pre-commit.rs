@@ -2,7 +2,7 @@
 ---
 [package]
 edition = "2024"
-rust-version = "1.91" # nixpkgs stable
+rust-version = "1.95" # nixpkgs stable
 
 [dependencies]
 lazy-regex = "3"
@@ -54,7 +54,7 @@ enum Error {
 }
 
 impl wheel::CustomExit for Error {
-    fn exit(self, cmd_name: &'static str) -> ! {
+    fn exit(self, cmd_name: &'static str) {
         match self {
             Self::Wheel(wheel::Error::CommandExit { name, output }) => {
                 eprintln!("{cmd_name}: command `{name}` exited with {}", output.status);

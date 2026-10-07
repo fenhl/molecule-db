@@ -1804,6 +1804,7 @@ puzzles! {
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::Product(&Metric::Sum(&[Metric::Arms, Metric::Const(2)]), &Metric::Cycles), Metric::AreaV, Metric::Cost]))),
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::AreaV, Metric::Instructions, Metric::Cost]))),
     ]),
+    SurgeAlloy => "Surge Alloy", critelli("cf8529d3ca7c9ccb78f9d60be67cbc65", 2026, 10, 2),
     SurrenderFlare => "Surrender Flare", official(Campaign(2), "P022"),
     SurrendierFlareSalt => "Surrendier Flare Salt", critelli("a77d68acaa9f0bb53a022686d5638983", 2026, 6, 28),
     SurveyingMagnet => "Surveying Magnet", official(Journal(108, 2, &["Warden, I."]), "P262"),
