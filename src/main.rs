@@ -968,7 +968,7 @@ async fn not_found(request: &Request<'_>) -> RawHtml<String> {
     let config = request.guard::<&State<Config>>().await.expect("missing config");
     let http_client = request.guard::<&State<reqwest::Client>>().await.expect("missing HTTP client");
     dynamic_page(config, http_client, Tab::MoleculeInput, true, "Not Found — Opus Magnum Molecule Database", html! {
-        main {
+        main(style = "flex-direction: column;") {
             h1 : "Error 404: Not Found";
             p : "Sorry, this page doesn't exist. Try one of the tabs above.";
         }
@@ -991,7 +991,7 @@ async fn internal_server_error(request: &Request<'_>) -> RawHtml<String> {
         _ => false,
     };
     dynamic_page(config, http_client, Tab::MoleculeInput, true, "Internal Server Error — Opus Magnum Molecule Database", html! {
-        main {
+        main(style = "flex-direction: column;") {
             h1 : "Error 500: Internal Server Error";
             p {
                 : "Sorry, something went wrong. ";
@@ -1021,7 +1021,7 @@ async fn fallback_catcher(status: Status, request: &Request<'_>) -> RawHtml<Stri
         _ => false,
     };
     dynamic_page(config, http_client, Tab::MoleculeInput, true, &format!("{} — Opus Magnum Molecule Database", status.reason_lossy()), html! {
-        main {
+        main(style = "flex-direction: column;") {
             h1 {
                 : "Error ";
                 : status.code;
