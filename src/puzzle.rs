@@ -1774,6 +1774,7 @@ puzzles! {
     ServinsWheel => "Servin's Wheel", critelli("OM2022Weeklies_ServinsWheel", 2022, 7, 16),
     ShimmeringChain => "Shimmering Chain", official(Journal(108, 9, &["Mallard, J."]), "P295"),
     SigmarsGarden => "Sigmar's Garden", critelli("af2e9ada2b4a888463d1aef200c58eb9", 2026, 1, 23),
+    SilkOfNeptune => "Silk of Neptune", critelli("DisjointJournal_SilkOfNeptune", 2026, 10, 3),
     SilverAppleOfDiscord => "Silver Apple of Discord", critelli("3e07b2ebbabd5ea7e9b87f8cd35d679f", 2025, 12, 21),
     SilverCaustic => "Silver Caustic", official(Journal(99, 1, &["Van Berlo, C."]), "P057"),
     SilverDust => "Silver Dust", official(Drm(1), "P203"),
