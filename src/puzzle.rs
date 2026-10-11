@@ -1088,6 +1088,7 @@ puzzles! {
         (Restriction::DefaultPreDrm, Metric::Ties(Cow::Borrowed(&[Metric::VintageInstructions, Metric::Cycles, Metric::Cost]))),
     ]),
     Asbestos => "Asbestos", critelli("OM2025Weeklies6_Asbestos", 2025, 7, 26),
+    AshOfVulcan => "Ash of Vulcan", critelli("DisjointJournal_AshOfVulcan", 2026, 10, 10),
     AssassinsFilament => "Assassin's Filament", official(Journal(99, 7, &["Adam, V."]), "P097"),
     BalancedGold => "Balanced Gold", official(Journal(108, 6, &["Påhlson, M."]), "P282"),
     BalingFiber => "Baling Fiber", official(Journal(108, 7, &["Warden, I."]), "P286"),
