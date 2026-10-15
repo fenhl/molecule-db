@@ -1659,6 +1659,7 @@ puzzles! {
     MyArmsAreBound => "My Arms Are Bound", critelli("ea51e6dcb8f5b83c0ef6e6b1f965d57a", 2026, 2, 8),
     NightmareFuel => "Nightmare Fuel", critelli("OM2022Weeklies_NightmareFuel", 2022, 7, 2),
     Nylon => "Nylon", critelli("OM2025Weeklies9_Nylon", 2025, 8, 16),
+    OddBeverage => "Odd Beverage", critelli("AlchemistForHire1_OddBeverage", 2026, 10, 15),
     OneLastFavor => "One Last Favor", critelli("eee9d425ba613ebb491183f4f6349af9", 2026, 5, 8),
     OrangeVitriol => "Orange Vitriol", critelli("547de89828787801144566f080b0b213", 2026, 4, 24),
     OrnamentalPlating => "Ornamental Plating", critelli("OM2024Weeklies_OrnamentalPlating", 2024, 8, 10),
