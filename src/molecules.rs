@@ -494,6 +494,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, u8, u8, Option<&'static
             (Puzzle::GuipureLace, 2, 0, Some("Elemental Gold (1)")),
             (Puzzle::FuckISpilledMyMetalsEverywhereCanYouHelpMePickThemUp, 1, 1, Some("Elemental Gold (1)")),
             (Puzzle::CritellicSlag, 0, 1, Some("Elemental Gold (1)")),
+            (Puzzle::ThargeFragmentPromotion, 0, 1, Some("Elemental Gold (1)")),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Gold, HexIndex { q: 1, r: 0 } => Atom::Gold, HexIndex { q: 2, r: 0 } => Atom::Gold, HexIndex { q: 3, r: 0 } => Atom::Repeat], bonds: collect![Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 1, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 0 }, end: HexIndex { q: 2, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 0 }, end: HexIndex { q: 3, r: 0 }, ty: BondType::Normal }] }, vec![
             (Puzzle::ElectrumSeparation, 0, 1, Some("Elemental Gold (2)")),
@@ -702,6 +703,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, u8, u8, Option<&'static
             (Puzzle::ShimmeringChain, 2, 0, Some("Elemental Salt")),
             (Puzzle::GuipureLace, 2, 0, Some("Elemental Salt")),
             (Puzzle::ProfanedMoonshine, 0, 1, Some("Elemental Salt")),
+            (Puzzle::ThargeFragmentPromotion, 0, 1, Some("Elemental Salt")),
         ]),
         (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Silver, HexIndex { q: 1, r: 0 } => Atom::Silver, HexIndex { q: 2, r: 0 } => Atom::Silver, HexIndex { q: 3, r: 0 } => Atom::Repeat], bonds: collect![Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 1, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 0 }, end: HexIndex { q: 2, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 2, r: 0 }, end: HexIndex { q: 3, r: 0 }, ty: BondType::Normal }] }, vec![
             (Puzzle::ElectrumSeparation, 0, 1, Some("Elemental Silver (1)")),

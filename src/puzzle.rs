@@ -1824,6 +1824,22 @@ puzzles! {
     Taricene => "Taricene", critelli("21042bbbbef69aef2000df9b97a4df9b", 2022, 5, 10),
     TaxFraud => "Tax Fraud", critelli("a39b83445002fbdea218e8b184a9e478", 2026, 4, 3),
     TemperedGlass => "Tempered Glass", official(Journal(108, 10, &["Tineri, P."]), "P301"),
+    ThargeFragmentPromotion => "Tharge Fragment Promotion", {
+        let permutations = METALS.into_iter().map(|atom| [
+            vec![Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Salt, HexIndex { q: 0, r: 1 } => atom, HexIndex { q: 1, r: 0 } => atom, HexIndex { q: 1, r: 1 } => Atom::Salt], bonds: collect![Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 0, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 1, r: 0 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 0, r: 1 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }, Bond { start: HexIndex { q: 1, r: 0 }, end: HexIndex { q: 1, r: 1 }, ty: BondType::Normal }] }],
+            vec![],
+        ]).collect_vec();
+        critelli_computation(
+            "c8f6a0d91988776de0dc3267ed9e2de2",
+            2026, 10, 21,
+            6,
+            permutations.clone(),
+            js_get_permutation_serverside(permutations),
+            &[
+                (Restriction::DefaultPostDrm /* output conditionals are explicitly allowed */, ComputationMetric::AverageNoVary(Metric::Ties(Cow::Borrowed(&[Metric::Rate, Metric::Cost, Metric::Instructions])))),
+            ],
+        )
+    },
     TheAmazingEverythingMachine => "The Amazing Everything-Machine", critelli_computation(
         "OM2025week4_The_Amazing_Everything-Machine",
         2025, 1, 24,

@@ -132,12 +132,6 @@ pub(crate) enum Metric {
     WidthV,
 }
 
-impl Metric {
-    pub(crate) const fn ties(submetrics: &'static [Self]) -> Self {
-        Self::Ties(Cow::Borrowed(submetrics))
-    }
-}
-
 #[derive(Debug, thiserror::Error)]
 #[error("unknown Critelli metric expression: {0}")]
 pub(crate) struct ParseError(String);
