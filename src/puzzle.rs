@@ -575,7 +575,7 @@ pub(crate) async fn get(config: &State<Config>, http_client: &State<reqwest::Cli
                 }
             };
             @let url = {
-                let mut url = Url::parse("https://omwiki.hoekri.nl/index.php").unwrap();
+                let mut url = Url::parse("https://omwiki.hoekri.nl/").unwrap();
                 url.path_segments_mut().unwrap().push(&title.replace(' ', "_"));
                 url
             };
